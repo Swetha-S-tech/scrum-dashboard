@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Daily Scrum Dashboard</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
 <style>
 /* ── IBM Plex Sans via @font-face (inline base64 not required — load from Google in a real deploy) ── */
@@ -854,6 +857,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   <div class="page-header">
     <h1>Daily Scrum Dashboard</h1>
     <p class="subtitle" id="date-line"></p>
+    <p id="conn-status" style="font-size:11px;font-weight:600;margin-top:4px;">⏳ Connecting...</p>
   </div>
 
   <!-- ── FORM SECTION ── -->
@@ -970,10 +974,25 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
 <footer>Made with <span>IBM Bob</span></footer>
 
 <script>
-  /* ── State ── */
+  /* ── Firebase init ── */
+  var firebaseConfig = {
+    apiKey:            "AIzaSyApGbwgeVg-GJBgznyNH6rbU0sDeeLHs4A",
+    authDomain:        "scrum-dashboard-403e8.firebaseapp.com",
+    databaseURL:       "https://scrum-dashboard-403e8-default-rtdb.firebaseio.com",
+    projectId:         "scrum-dashboard-403e8",
+    storageBucket:     "scrum-dashboard-403e8.firebasestorage.app",
+    messagingSenderId: "711162893039",
+    appId:             "1:711162893039:web:95065c9e7a3b29ef64c11a"
+  };
+  firebase.initializeApp(firebaseConfig);
+  var db          = firebase.database();
+  var membersRef  = db.ref('members');
+  var historyRef  = db.ref('history');
+
+  /* ── State (local mirror of Firebase) ── */
   var members   = [];
   var editingId = null;
-  var history   = {}; /* { memberId: [ snapshot... ] } */
+  var history   = {};
 
   /* ── Date ── */
   var now = new Date();
@@ -1234,19 +1253,18 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       support:   entry.support
     });
 
+    /* Write to Firebase — listener will re-render automatically */
+    membersRef.child(entryId).set(entry);
+    historyRef.child(entryId).set(history[entryId]);
+
     if (isEdit) {
-      for (var i = 0; i < members.length; i++) {
-        if (members[i].id === editingId) { members[i] = entry; break; }
-      }
       stopEdit();
       showToast('✏ ' + name + '\'s update saved');
     } else {
-      members.push(entry);
       showToast('✅ ' + name + ' added to stand-up!');
     }
 
     clearForm();
-    render();
     hideSummary();
   });
 
@@ -1358,9 +1376,9 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   /* ── Remove ── */
   function removeMember(id) {
     var m = members.find ? members.find(function(x){ return x.id === id; }) : null;
-    members = members.filter(function(x) { return x.id !== id; });
+    membersRef.child(id).remove();
+    historyRef.child(id).remove();
     if (editingId === id) { stopEdit(); clearForm(); }
-    render();
     hideSummary();
     if (m) showToast('🗑 ' + m.name + ' removed.', '#525252');
   }
@@ -1690,8 +1708,29 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     document.getElementById('summary-section').style.display = 'none';
   }
 
-  /* ── Init ── */
-  render();
+  /* ── Firebase real-time listener ── */
+  membersRef.on('value', function(snap) {
+    var data = snap.val() || {};
+    members = Object.values(data).sort(function(a, b) { return (a.ts || 0) - (b.ts || 0); });
+    render();
+  });
+
+  historyRef.on('value', function(snap) {
+    history = snap.val() || {};
+  });
+
+  /* ── Connection status indicator ── */
+  db.ref('.info/connected').on('value', function(snap) {
+    var el = document.getElementById('conn-status');
+    if (!el) return;
+    if (snap.val()) {
+      el.textContent = '🟢 Live — syncing with team';
+      el.style.color = '#24A148';
+    } else {
+      el.textContent = '🔴 Offline — changes will sync when reconnected';
+      el.style.color = '#DA1E28';
+    }
+  });
 </script>
 </body>
 </html>
