@@ -994,7 +994,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
 .team-row {
   background: #F4F6FB; border: 1px solid #DDE1E6;
   border-radius: 10px; padding: 12px 14px;
-  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;
 }
 .team-row-info { flex: 1; min-width: 0; }
 .team-row-name { font-size: 13px; font-weight: 700; color: #161616; }
@@ -1029,6 +1029,38 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   background: #fff; outline: none;
 }
 .settings-edit-form input:focus { border-color: #0F62FE; }
+
+/* Inline edit expand inside each team-row */
+.team-row-edit-expand {
+  display: none; width: 100%; margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid #DDE1E6;
+}
+.team-row-edit-expand.open { display: block; }
+.team-row-edit-expand label { font-size: 11px; font-weight: 600; color: #525252; display: block; margin-bottom: 4px; margin-top: 8px; }
+.team-row-edit-expand label:first-child { margin-top: 0; }
+.team-row-edit-expand input {
+  width: 100%; padding: 7px 10px; border: 1.5px solid #DDE1E6;
+  border-radius: 8px; font-size: 13px; font-family: inherit;
+  background: #fff; outline: none;
+}
+.team-row-edit-expand input:focus { border-color: #0F62FE; }
+.team-row-edit-expand .row-edit-actions { display: flex; gap: 8px; margin-top: 10px; }
+.btn-save-changes {
+  flex: 1; padding: 7px 12px; border-radius: 99px; border: none;
+  background: linear-gradient(135deg,#0F62FE,#4589FF); color: #fff;
+  font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer;
+  box-shadow: 0 3px 8px rgba(15,98,254,.25); transition: opacity .2s;
+}
+.btn-save-changes:hover { opacity: .88; }
+.btn-cancel-edit {
+  padding: 7px 14px; border-radius: 99px; border: 1.5px solid #DDE1E6;
+  background: #fff; color: #525252; font-size: 11px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: background .2s;
+}
+.btn-cancel-edit:hover { background: #F4F6FB; }
+.row-edit-msg { font-size: 11px; font-weight: 600; margin-top: 6px; display: none; }
+.row-edit-msg.ok  { color: #24A148; display: block; }
+.row-edit-msg.err { color: #DA1E28; display: block; }
 .settings-msg { font-size: 11px; font-weight: 600; margin-top: 8px; display: none; }
 .settings-msg.ok  { color: #24A148; }
 .settings-msg.err { color: #DA1E28; }
@@ -1415,69 +1447,109 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     allTeams.forEach(function(t) {
       var row = document.createElement('div');
       row.className = 'team-row';
-      row.innerHTML = '<div class="team-row-info">'
-        + '<div class="team-row-name">' + escHtml(t.label) + '</div>'
+      row.style.flexDirection = 'column';
+      row.style.alignItems    = 'stretch';
+      var uid = 'row-' + t.key.replace(/[^a-z0-9]/gi, '_');
+      row.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">'
+        + '<div class="team-row-info">'
+        + '<div class="team-row-name" id="' + uid + '-name-display">' + escHtml(t.label) + '</div>'
         + '<div class="team-row-key">ID: ' + escHtml(t.key) + '</div>'
         + '</div>'
         + '<div class="team-row-actions">'
         + '<button class="btn-team-edit" data-skey="' + t.key + '">✏ Edit</button>'
         + '<button class="btn-team-del"  data-dkey="' + t.key + '">🗑 Delete</button>'
+        + '</div>'
+        + '</div>'
+        /* ── inline expand ── */
+        + '<div class="team-row-edit-expand" id="' + uid + '-expand">'
+        + '<label>Team Name</label>'
+        + '<input type="text"     id="' + uid + '-inp-name" value="' + escHtml(t.label) + '" placeholder="Team name" />'
+        + '<label style="margin-top:8px;">New Password <span style="font-weight:400;color:#8D8D8D;">(leave blank to keep current)</span></label>'
+        + '<input type="password" id="' + uid + '-inp-pwd"  placeholder="New password" />'
+        + '<label style="margin-top:8px;">Confirm New Password</label>'
+        + '<input type="password" id="' + uid + '-inp-pwd2" placeholder="Re-enter new password" />'
+        + '<div class="row-edit-actions">'
+        + '<button class="btn-save-changes" data-savekey="' + t.key + '">💾 Save Changes</button>'
+        + '<button class="btn-cancel-edit"  data-cancelkey="' + t.key + '">Cancel</button>'
+        + '</div>'
+        + '<div class="row-edit-msg" id="' + uid + '-msg"></div>'
         + '</div>';
       list.appendChild(row);
     });
+
     list.onclick = function(e) {
-      var editKey = e.target.getAttribute('data-skey');
-      var delKey  = e.target.getAttribute('data-dkey');
-      if (editKey) openEditForm(editKey);
+      var editKey   = e.target.getAttribute('data-skey');
+      var delKey    = e.target.getAttribute('data-dkey');
+      var saveKey   = e.target.getAttribute('data-savekey');
+      var cancelKey = e.target.getAttribute('data-cancelkey');
+
+      if (editKey) {
+        /* toggle expand; close any other open expands first */
+        var uid = 'row-' + editKey.replace(/[^a-z0-9]/gi, '_');
+        var expand = document.getElementById(uid + '-expand');
+        var isOpen = expand.classList.contains('open');
+        /* close all */
+        list.querySelectorAll('.team-row-edit-expand').forEach(function(el) { el.classList.remove('open'); });
+        list.querySelectorAll('.btn-team-edit').forEach(function(btn) { btn.textContent = '✏ Edit'; });
+        if (!isOpen) {
+          expand.classList.add('open');
+          e.target.textContent = '✕ Close';
+          document.getElementById(uid + '-inp-name').focus();
+        }
+      }
+
+      if (cancelKey) {
+        var uid2 = 'row-' + cancelKey.replace(/[^a-z0-9]/gi, '_');
+        document.getElementById(uid2 + '-expand').classList.remove('open');
+        /* reset edit button label */
+        var editBtn = list.querySelector('[data-skey="' + cancelKey + '"]');
+        if (editBtn) editBtn.textContent = '✏ Edit';
+      }
+
+      if (saveKey) saveRowChanges(saveKey);
       if (delKey)  deleteTeam(delKey);
     };
   }
 
-  function openEditForm(key) {
-    editingTeamKey = key;
-    document.getElementById('edit-form-team-label').textContent = TEAMS[key].label;
-    document.getElementById('edit-team-name').value = TEAMS[key].label;
-    document.getElementById('edit-team-pwd').value  = '';
-    document.getElementById('edit-team-pwd2').value = '';
-    document.getElementById('edit-msg').style.display = 'none';
-    document.getElementById('settings-edit-form').classList.add('open');
-    document.getElementById('edit-team-name').focus();
+  function saveRowChanges(key) {
+    var uid     = 'row-' + key.replace(/[^a-z0-9]/gi, '_');
+    var newName = document.getElementById(uid + '-inp-name').value.trim();
+    var newPwd1 = document.getElementById(uid + '-inp-pwd').value;
+    var newPwd2 = document.getElementById(uid + '-inp-pwd2').value;
+    var msgEl   = document.getElementById(uid + '-msg');
+    msgEl.className = 'row-edit-msg';
+
+    if (!newName)                        { msgEl.textContent = '❌ Name cannot be empty.';   msgEl.className = 'row-edit-msg err'; return; }
+    if (newPwd1 && newPwd1 !== newPwd2)  { msgEl.textContent = '❌ Passwords do not match.'; msgEl.className = 'row-edit-msg err'; return; }
+    if (newPwd1 && newPwd1.length < 6)   { msgEl.textContent = '❌ Min 6 characters.';        msgEl.className = 'row-edit-msg err'; return; }
+
+    var updates = { label: newName };
+    if (newPwd1) updates.password = newPwd1;
+    TEAMS[key].label = newName;
+    if (newPwd1) TEAMS[key].password = newPwd1;
+
+    var isDefault = (key === 'notification-wizards' || key === 'notification-team2');
+    if (!isDefault) {
+      registryRef.child(key).update(updates, function(err) {
+        if (err) { msgEl.textContent = '❌ Failed to save.'; msgEl.className = 'row-edit-msg err'; return; }
+        showSettingsMsg('✅ "' + newName + '" saved.', 'ok');
+        renderSettingsTeams();
+      });
+    } else {
+      showSettingsMsg('✅ "' + newName + '" saved.', 'ok');
+      renderSettingsTeams();
+    }
   }
 
+  /* legacy edit-cancel / edit-save listeners (kept so no JS error from missing IDs) */
   document.getElementById('edit-cancel-btn').addEventListener('click', function() {
     document.getElementById('settings-edit-form').classList.remove('open');
     editingTeamKey = null;
   });
-
   document.getElementById('edit-save-btn').addEventListener('click', function() {
     if (!editingTeamKey) return;
-    var newName = document.getElementById('edit-team-name').value.trim();
-    var newPwd1 = document.getElementById('edit-team-pwd').value;
-    var newPwd2 = document.getElementById('edit-team-pwd2').value;
-    var msgEl   = document.getElementById('edit-msg');
-    msgEl.style.display = 'none'; msgEl.className = 'settings-msg';
-    if (!newName)                   { msgEl.textContent = '❌ Name cannot be empty.';            msgEl.className = 'settings-msg err'; msgEl.style.display = 'block'; return; }
-    if (newPwd1 && newPwd1 !== newPwd2) { msgEl.textContent = '❌ Passwords do not match.';     msgEl.className = 'settings-msg err'; msgEl.style.display = 'block'; return; }
-    if (newPwd1 && newPwd1.length < 6)  { msgEl.textContent = '❌ Min 6 characters.';           msgEl.className = 'settings-msg err'; msgEl.style.display = 'block'; return; }
-    var updates = { label: newName };
-    if (newPwd1) updates.password = newPwd1;
-    TEAMS[editingTeamKey].label = newName;
-    if (newPwd1) TEAMS[editingTeamKey].password = newPwd1;
-    var isDefault = (editingTeamKey === 'notification-wizards' || editingTeamKey === 'notification-team2');
-    if (!isDefault) {
-      registryRef.child(editingTeamKey).update(updates, function(err) {
-        if (err) { msgEl.textContent = '❌ Failed to save.'; msgEl.className = 'settings-msg err'; msgEl.style.display = 'block'; return; }
-        showSettingsMsg('✅ Team updated.', 'ok');
-        document.getElementById('settings-edit-form').classList.remove('open');
-        editingTeamKey = null;
-        renderSettingsTeams();
-      });
-    } else {
-      showSettingsMsg('✅ Team updated.', 'ok');
-      document.getElementById('settings-edit-form').classList.remove('open');
-      editingTeamKey = null;
-      renderSettingsTeams();
-    }
+    saveRowChanges(editingTeamKey);
   });
 
   function deleteTeam(key) {
