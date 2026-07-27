@@ -1396,8 +1396,10 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     if (e.key === 'Enter') document.getElementById('login-btn').click();
   });
 
-  /* ── Settings ── */
-  var ADMIN_PWD        = 'Password123!';
+  /* ── Passwords ── */
+  var ADMIN_PWD        = 'Password123!';  /* Settings unlock + Delete board in settings */
+  var DELETE_ALL_PWD   = 'Scrum!!007';    /* Delete All button on dashboard */
+
   var editingTeamKey   = null;
   var pendingDeleteKey = null;
 
@@ -2245,12 +2247,12 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     /* Step 1 — password */
     showModal({
       icon: '🔒',
-      title: 'Admin Password Required',
-      desc: 'Enter the admin password to delete all updates.',
+      title: 'Password Required',
+      desc: 'Enter the password to delete all stand-up updates.',
       password: true,
       okLabel: 'Verify',
       okColor: 'red',
-      correctPwd: ADMIN_PWD,
+      correctPwd: DELETE_ALL_PWD,
       onOk: function() {
         pendingDeleteAll = true;
         var count = members.length;
