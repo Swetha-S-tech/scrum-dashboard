@@ -964,12 +964,12 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     <div class="login-logo">🧑‍💻</div>
     <div class="login-title">Daily Scrum Dashboard</div>
     <div class="login-subtitle">Sign in to your team's board</div>
-    <label class="login-label" for="login-team">Select your team</label>
-    <select class="login-select" id="login-team">
-      <option value="">-- Select Team --</option>
-      <option value="notification-wizards">Notification - Wizards</option>
-      <option value="notification-team2">Notification - Team2</option>
-    </select>
+    <label class="login-label" for="login-team">Team Name</label>
+    <input class="login-input" type="text" id="login-team" placeholder="Type your team name..." autocomplete="off" list="team-suggestions" />
+    <datalist id="team-suggestions">
+      <option value="Notification - Wizards"></option>
+      <option value="Notification - Team2"></option>
+    </datalist>
     <label class="login-label" for="login-pwd">Team Password</label>
     <input class="login-input" type="password" id="login-pwd" placeholder="Enter your team password" />
     <div class="login-error" id="login-error">❌ Incorrect password. Please try again.</div>
@@ -1165,40 +1165,49 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   var registryRef = db.ref('teams-registry');
   registryRef.on('value', function(snap) {
     var data = snap.val() || {};
-    var select = document.getElementById('login-team');
-    /* Remove previously added dynamic options (keep first 3: placeholder + 2 defaults) */
-    while (select.options.length > 3) select.remove(3);
+    var datalist = document.getElementById('team-suggestions');
+    /* Clear dynamic options (keep first 2 defaults) */
+    while (datalist.options.length > 2) datalist.remove(2);
     Object.keys(data).forEach(function(key) {
       var t = data[key];
       TEAMS[key] = { label: t.label, password: t.password };
       var opt = document.createElement('option');
-      opt.value       = key;
-      opt.textContent = t.label;
-      select.appendChild(opt);
+      opt.value = t.label;
+      datalist.appendChild(opt);
     });
   });
 
+  /* Find team key by label (case-insensitive) */
+  function findTeamByLabel(label) {
+    var lower = label.trim().toLowerCase();
+    var found = null;
+    Object.keys(TEAMS).forEach(function(key) {
+      if (TEAMS[key].label.toLowerCase() === lower) found = { key: key, team: TEAMS[key] };
+    });
+    return found;
+  }
+
   /* ── Login logic ── */
   document.getElementById('login-btn').addEventListener('click', function() {
-    var teamKey = document.getElementById('login-team').value;
-    var pwd     = document.getElementById('login-pwd').value;
-    var errEl   = document.getElementById('login-error');
+    var teamLabel = document.getElementById('login-team').value.trim();
+    var pwd       = document.getElementById('login-pwd').value;
+    var errEl     = document.getElementById('login-error');
     errEl.style.display = 'none';
 
-    if (!teamKey) { errEl.textContent = '❌ Please select a team.'; errEl.style.display = 'block'; return; }
-    if (!pwd)     { errEl.textContent = '❌ Please enter the team password.'; errEl.style.display = 'block'; return; }
+    if (!teamLabel) { errEl.textContent = '❌ Please enter your team name.'; errEl.style.display = 'block'; return; }
+    if (!pwd)       { errEl.textContent = '❌ Please enter the team password.'; errEl.style.display = 'block'; return; }
 
-    var team = TEAMS[teamKey];
-    if (!team || pwd !== team.password) {
-      errEl.textContent = '❌ Incorrect password. Please try again.';
+    var result = findTeamByLabel(teamLabel);
+    if (!result || pwd !== result.team.password) {
+      errEl.textContent = '❌ Team not found or incorrect password.';
       errEl.style.display = 'block';
       document.getElementById('login-pwd').value = '';
       document.getElementById('login-pwd').focus();
       return;
     }
 
-    currentTeam = teamKey;
-    enterBoard(teamKey, team.label);
+    currentTeam = result.key;
+    enterBoard(result.key, result.team.label);
   });
 
   document.getElementById('login-pwd').addEventListener('keydown', function(e) {
@@ -1241,8 +1250,8 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       document.getElementById('create-team-name').value = '';
       document.getElementById('create-team-pwd').value  = '';
       document.getElementById('create-team-pwd2').value = '';
-      /* Auto-select the new team in dropdown */
-      document.getElementById('login-team').value = key;
+      /* Auto-fill the team name input */
+      document.getElementById('login-team').value = name;
     });
   });
 
@@ -1292,7 +1301,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     render();
     document.getElementById('app-screen').style.display   = 'none';
     document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('login-team').value = '';
+    document.getElementById('login-team').value  = '';
     document.getElementById('login-pwd').value  = '';
     document.getElementById('login-error').style.display = 'none';
   });
