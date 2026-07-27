@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily Scrum Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+<style>
+/* ── IBM Plex Sans via @font-face (inline base64 not required — load from Google in a real deploy) ── */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+/* ─────────────── RESET & TOKENS ─────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ibm-blue:      #0F62FE;
+  --ibm-blue-dark: #0043CE;
+  --ibm-blue-lite: #4589FF;
+  --ibm-blue-bg:   #E8F1FF;
+  --accent:        #8A3FFC;
+  --success:       #24A148;
+  --warning:       #F1C21B;
+  --danger:        #DA1E28;
+  --orange:        #FF6B2B;
+  --purple:        #8A3FFC;
+  --text:          #161616;
+  --text-muted:    #525252;
+  --text-subtle:   #8D8D8D;
+  --border:        #DDE1E6;
+  --surface:       #F4F6FB;
+  --card-bg:       #FFFFFF;
+  --radius-sm:     8px;
+  --radius-md:     12px;
+  --radius-lg:     16px;
+  --shadow-sm:     0 2px 8px rgba(15,98,254,.07);
+  --shadow-md:     0 6px 20px rgba(15,98,254,.10);
+  --shadow-lg:     0 12px 32px rgba(15,98,254,.14);
+  --transition:    all .25s ease;
+}
+
+/* ─────────────── BODY & PAGE ─────────────── */
+body {
+  font-family: 'IBM Plex Sans', -apple-system, "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  background: linear-gradient(180deg, #F7FAFF 0%, #EDF5FF 50%, #FFFFFF 100%);
+  min-height: 100vh;
+  padding: 32px 16px 64px;
+}
+
+.container { max-width: 800px; margin: 0 auto; }
+
+/* ─────────────── PAGE HEADER ─────────────── */
+.page-header { margin-bottom: 36px; }
+
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.3px;
+  display: inline-block;
+  padding-bottom: 6px;
+  border-bottom: 3px solid var(--ibm-blue);
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* ─────────────── SECTION TITLES ─────────────── */
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  margin: 40px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.section-title .sec-icon { margin-right: 6px; font-style: normal; }
+
+/* ─────────────── FORM CARD ─────────────── */
+.form-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 28px 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+}
+
+.form-group { display: flex; flex-direction: column; gap: 5px; position: relative; }
+.form-group.full { grid-column: 1 / -1; }
+
+/* Mandatory left-border highlight */
+.form-group.required-field {
+  padding-left: 8px;
+  border-left: 3px solid var(--danger);
+  border-radius: 2px;
+}
+.form-group.required-field.filled {
+  border-left-color: var(--success);
+}
+
+label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: .02em;
+}
+label .req { color: var(--danger); margin-left: 2px; font-weight: 700; }
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #FAFBFF;
+  color: var(--text);
+  outline: none;
+  transition: var(--transition);
+  width: 100%;
+}
+input::placeholder, textarea::placeholder { color: var(--text-subtle); font-size: 13px; }
+input:focus, textarea:focus, select:focus {
+  border-color: var(--ibm-blue);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(15,98,254,.12);
+}
+textarea { resize: vertical; min-height: 72px; }
+select { cursor: pointer; }
+
+/* Character counter */
+.char-counter {
+  font-size: 10px;
+  color: var(--text-subtle);
+  text-align: right;
+  margin-top: 2px;
+}
+.char-counter.warn { color: var(--warning); }
+.char-counter.limit { color: var(--danger); }
+
+/* Field error */
+.field-error {
+  font-size: 11px;
+  color: var(--danger);
+  margin-top: 3px;
+  display: none;
+  font-weight: 500;
+}
+.field-error.visible { display: block; }
+input.invalid, textarea.invalid, select.invalid {
+  border-color: var(--danger) !important;
+  background: #FFF8F8 !important;
+}
+
+/* ─────────────── BUTTONS ─────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  margin-top: 20px;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.btn:active { transform: scale(.97); }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--ibm-blue) 0%, var(--ibm-blue-lite) 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(15,98,254,.35);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(15,98,254,.45);
+}
+
+.btn-summary {
+  background: linear-gradient(135deg, var(--accent) 0%, #A56EFF 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(138,63,252,.30);
+}
+.btn-summary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(138,63,252,.40);
+}
+
+.btn-cancel {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1.5px solid var(--border);
+  margin-left: 10px;
+}
+.btn-cancel:hover { background: var(--surface); border-color: #B0B8C8; }
+
+.btn-edit {
+  background: var(--ibm-blue-bg);
+  color: var(--ibm-blue);
+  border: none;
+  padding: 5px 12px;
+  font-size: 12px;
+  margin-top: 0;
+  border-radius: 99px;
+}
+.btn-edit:hover { background: #D0E2FF; transform: translateY(-1px); }
+
+.btn-danger {
+  background: #FFF1F1;
+  color: var(--danger);
+  border: none;
+  padding: 5px 12px;
+  font-size: 12px;
+  margin-top: 0;
+  border-radius: 99px;
+}
+.btn-danger:hover { background: #FFD7D9; transform: translateY(-1px); }
+
+/* ─────────────── TOOLBAR ─────────────── */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.member-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ibm-blue);
+  background: var(--ibm-blue-bg);
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+
+/* ─────────────── CARDS GRID ─────────────── */
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+@media (max-width: 580px) {
+  .cards-grid { grid-template-columns: 1fr; }
+  .form-grid  { grid-template-columns: 1fr; }
+  .btn-summary { font-size: 12px; padding: 9px 14px; }
+}
+
+/* ─────────────── STAND-UP CARD ─────────────── */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 18px 16px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  animation: slideUp .3s ease both;
+  position: relative;
+  overflow: hidden;
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Status left border */
+.card.blocked    { border-left: 4px solid var(--danger); }
+.card.inprogress { border-left: 4px solid var(--ibm-blue); }
+.card.completed  { border-left: 4px solid var(--success); }
+
+/* ── Card header ── */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+.card-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+/* Avatar circle */
+.card-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ibm-blue) 0%, var(--ibm-blue-lite) 100%);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0;
+}
+
+.card-meta { min-width: 0; }
+.card-name { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-ticket {
+  display: inline-block;
+  font-size: 10px;
+  background: var(--ibm-blue-bg);
+  color: var(--ibm-blue);
+  border: 1px solid #A8C8FF;
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-weight: 700;
+  margin-top: 2px;
+  letter-spacing: .03em;
+}
+.card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ── Card body fields ── */
+.card-fields { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.field-row { display: grid; grid-template-columns: 24px 1fr; align-items: baseline; gap: 6px; }
+.field-icon { font-size: 13px; line-height: 1.5; }
+.field-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-subtle);
+  margin-bottom: 1px;
+}
+.field-value {
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.45;
+  grid-column: 2;
+}
+
+/* ── Status pills / badges ── */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  letter-spacing: .02em;
+}
+.pill-blocked    { background:#FFF1F1; color:var(--danger);  border-color:#FFB3B8; }
+.pill-inprogress { background:#EDF5FF; color:var(--ibm-blue);border-color:#A8C8FF; }
+.pill-completed  { background:#DEFBE6; color:#0E6027;        border-color:#A7F0BA; }
+
+/* ── Last-updated timestamp ── */
+.card-footer {
+  font-size: 10px;
+  color: var(--text-subtle);
+  border-top: 1px solid #F0F2F5;
+  padding-top: 8px;
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ─────────────── EMPTY STATE ─────────────── */
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 48px 24px;
+  background: var(--card-bg);
+  border: 1.5px dashed #C1CEDE;
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  grid-column: 1 / -1;
+}
+.empty-icon { font-size: 32px; display: block; margin-bottom: 10px; }
+
+/* ─────────────── SUMMARY PANEL ─────────────── */
+#summary-panel {
+  display: none;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-md);
+  animation: fadeInUp .4s ease both;
+}
+
+/* Summary header */
+.sum-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--ibm-blue-bg);
+}
+.sum-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+.sum-title span { color: var(--ibm-blue); }
+.sum-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--ibm-blue-bg);
+  padding: 4px 12px;
+  border-radius: 99px;
+}
+
+/* Metric cards */
+.sum-stats { display: flex; gap: 14px; margin-bottom: 24px; }
+.stat-box {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+.stat-box:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.stat-box .stat-emoji { font-size: 22px; display: block; margin-bottom: 6px; }
+.stat-box .stat-num   { font-size: 30px; font-weight: 700; line-height: 1; }
+.stat-box .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 4px; }
+.stat-box.blue  { border-top: 3px solid var(--ibm-blue);  }
+.stat-box.blue  .stat-num { color: var(--ibm-blue); }
+.stat-box.green { border-top: 3px solid var(--success); }
+.stat-box.green .stat-num { color: var(--success); }
+.stat-box.red   { border-top: 3px solid var(--danger); background:#FFF8F8; border-color: #FFB3B8; }
+.stat-box.red   .stat-num { color: var(--danger); }
+
+/* Animated progress bar */
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.progress-track {
+  height: 10px;
+  background: #DDE1E6;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  width: 0%;
+  transition: width .8s cubic-bezier(.4,0,.2,1);
+}
+.progress-fill.healthy  { background: linear-gradient(90deg, var(--success), #42BE65); }
+.progress-fill.warning  { background: linear-gradient(90deg, var(--warning), #F6D860); }
+.progress-fill.critical { background: linear-gradient(90deg, var(--danger),  #FA4D56); }
+
+/* Escalation alert box */
+.escalation-box {
+  background: #FFF1F1;
+  border: 1px solid #FFB3B8;
+  border-left: 5px solid var(--danger);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+.escalation-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--danger);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.escalation-item {
+  font-size: 12.5px;
+  color: var(--text);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: #FFEEEE;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid #FFB3B8;
+}
+.escalation-item strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.escalation-item .esc-support { color: var(--text-muted); font-size: 11px; margin-top: 3px; }
+
+/* Member summary rows */
+.sum-members { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+.sum-member-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  transition: var(--transition);
+}
+.sum-member-row:hover { box-shadow: var(--shadow-sm); }
+.sum-member-row.escalate { border-left: 4px solid var(--danger); background: #FFF8F8; }
+.sum-member-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.sum-member-name { font-size: 14px; font-weight: 700; }
+.sum-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.chip-blocked    { background:#FFF1F1; color:var(--danger);  border-color:#FFB3B8; }
+.chip-inprogress { background:#EDF5FF; color:var(--ibm-blue);border-color:#A8C8FF; }
+.chip-completed  { background:#DEFBE6; color:#0E6027;        border-color:#A7F0BA; }
+
+.sum-fields {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 6px 12px;
+  font-size: 12.5px;
+}
+.sum-field-lbl {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sum-field-val { color: var(--text); }
+
+/* Summary footer */
+.sum-footer {
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Action Items ── */
+.action-items-box {
+  background: #F0F7FF;
+  border: 1px solid #A8C8FF;
+  border-left: 5px solid var(--ibm-blue);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+.action-items-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ibm-blue);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.action-items-list { display: flex; flex-direction: column; gap: 10px; }
+.action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #D0E2FF;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+.action-idx {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ibm-blue);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.action-body { flex: 1; min-width: 0; }
+.action-assignee {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ibm-blue-dark);
+  margin-bottom: 2px;
+}
+.action-desc {
+  font-size: 12.5px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.action-from {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ─────────────── TOAST ─────────────── */
+#toast {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  background: #24A148;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity .3s ease, transform .3s ease;
+  pointer-events: none;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+
+/* ─────────────── LOADING SPINNER ─────────────── */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  display: none;
+}
+.spinning .spinner { display: inline-block; }
+.spinning .btn-label { display: none; }
+
+/* ─────────────── SUMMARY SECTION HEADER ─────────────── */
+#summary-section { display: none; }
+
+/* ─────────────── FORM TITLE ─────────────── */
+#form-title-label { display: flex; justify-content: space-between; align-items: center; }
+
+/* ─────────────── FOOTER ─────────────── */
+footer {
+  text-align: center;
+  margin-top: 56px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-subtle);
+  letter-spacing: .02em;
+}
+footer span { color: var(--ibm-blue); font-weight: 600; }
+
+/* ─────────────── ANIMATIONS ─────────────── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Tooltip */
+[data-tip] { position: relative; cursor: default; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #161616;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+  z-index: 10;
+}
+[data-tip]:hover::after { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ── PAGE HEADER ── -->
+  <div class="page-header">
+    <h1>Daily Scrum Dashboard</h1>
+    <p class="subtitle" id="date-line"></p>
+  </div>
+
+  <!-- ── FORM SECTION ── -->
+  <div class="section-title" id="form-title-label">
+    <span><i class="sec-icon">📋</i><span id="form-heading">Add Team Member Update</span></span>
+  </div>
+  <div class="form-card">
+    <div class="form-grid">
+
+      <div class="form-group required-field" id="fg-name">
+        <label for="f-name">Name <span class="req">*</span></label>
+        <input type="text" id="f-name" placeholder="e.g. Alex Johnson" />
+        <span class="field-error" id="err-name">Please enter the team member's name.</span>
+      </div>
+
+      <div class="form-group" id="fg-ticket">
+        <label for="f-ticket">Ticket ID</label>
+        <input type="text" id="f-ticket" placeholder="e.g. SCRUM-42" />
+      </div>
+
+      <div class="form-group full required-field" id="fg-yesterday">
+        <label for="f-yesterday">📅 Yesterday <span class="req">*</span></label>
+        <textarea id="f-yesterday" placeholder="e.g. Completed regression testing for ASD-123, reviewed PR #45" maxlength="300"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="field-error" id="err-yesterday">Please describe what you did yesterday.</span>
+          <span class="char-counter" id="cc-yesterday">0 / 300</span>
+        </div>
+      </div>
+
+      <div class="form-group full required-field" id="fg-today">
+        <label for="f-today">🎯 Today <span class="req">*</span></label>
+        <textarea id="f-today" placeholder="e.g. Fix API timeout issue in SCRUM-88, team sync at 2pm" maxlength="300"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="field-error" id="err-today">Please describe what you plan to do today.</span>
+          <span class="char-counter" id="cc-today">0 / 300</span>
+        </div>
+      </div>
+
+      <div class="form-group full required-field" id="fg-blockers">
+        <label for="f-blockers">🚧 Blockers <span class="req">*</span></label>
+        <textarea id="f-blockers" placeholder="Describe blockers, or type 'None'." style="min-height:56px;" maxlength="200"></textarea>
+        <span class="field-error" id="err-blockers">Please enter blockers or type 'None'.</span>
+      </div>
+
+      <div class="form-group required-field" id="fg-blocked">
+        <label for="f-blocked">Status <span class="req">*</span></label>
+        <select id="f-blocked">
+          <option value="">-- Select Status --</option>
+          <option value="inprogress">🔵 In Progress</option>
+          <option value="completed">🟢 Completed</option>
+          <option value="yes">🔴 Blocked</option>
+        </select>
+        <span class="field-error" id="err-blocked">Please select a status.</span>
+      </div>
+
+      <div class="form-group" id="fg-support">
+        <label for="f-support">🤝 Support Needed</label>
+        <input type="text" id="f-support" placeholder="e.g. Review from backend team" />
+      </div>
+
+    </div>
+    <div>
+      <button class="btn btn-primary" id="submit-btn">
+        <span class="spinner"></span>
+        <span class="btn-label">➕ Add Update</span>
+      </button>
+      <button class="btn btn-cancel" id="cancel-btn" style="display:none;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ── CARDS SECTION ── -->
+  <div class="section-title" style="margin-top:44px;">
+    <span><i class="sec-icon">👥</i> Team Stand-Up Cards</span>
+    <span class="member-count" id="member-count">0 members</span>
+  </div>
+
+  <div class="toolbar">
+    <span></span>
+    <button class="btn btn-summary" id="summary-btn" style="margin-top:0;">
+      <span class="spinner"></span>
+      <span class="btn-label">🤖 Generate Summary</span>
+    </button>
+  </div>
+
+  <div class="cards-grid" id="cards-container">
+    <div class="empty">
+      <span class="empty-icon">📋</span>
+      No updates yet — add the first team member above.
+    </div>
+  </div>
+
+  <!-- ── SUMMARY SECTION ── -->
+  <p class="section-title" id="summary-section">
+    <span><i class="sec-icon">📊</i> Sprint Stand-Up Summary</span>
+  </p>
+  <div id="summary-panel"></div>
+
+</div>
+
+<!-- ── TOAST ── -->
+<div id="toast">✓ <span id="toast-msg">Update saved successfully.</span></div>
+
+<footer>Made with <span>IBM Bob</span></footer>
+
+<script>
+  /* ── State ── */
+  var members   = [];
+  var editingId = null;
+
+  /* ── Date ── */
+  var now = new Date();
+  document.getElementById('date-line').textContent =
+    now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  /* ── Helpers ── */
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+  function val(id) { return document.getElementById(id).value.trim(); }
+  function set(id, v) { document.getElementById(id).value = v || ''; }
+
+  /* ── Toast ── */
+  function showToast(msg, color) {
+    var t = document.getElementById('toast');
+    document.getElementById('toast-msg').textContent = msg || 'Update saved successfully.';
+    t.style.background = color || '#24A148';
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2800);
+  }
+
+  /* ── Character counters ── */
+  function bindCounter(fieldId, counterId, max) {
+    var field = document.getElementById(fieldId);
+    var counter = document.getElementById(counterId);
+    field.addEventListener('input', function() {
+      var len = field.value.length;
+      counter.textContent = len + ' / ' + max;
+      counter.className = 'char-counter' + (len >= max ? ' limit' : len >= max * .8 ? ' warn' : '');
+      updateRequiredBorder(fieldId);
+    });
+  }
+  bindCounter('f-yesterday', 'cc-yesterday', 300);
+  bindCounter('f-today',     'cc-today',     300);
+
+  /* ── Required field green fill indicator ── */
+  function updateRequiredBorder(fieldId) {
+    var fgMap = { 'f-name':'fg-name','f-yesterday':'fg-yesterday','f-today':'fg-today','f-blockers':'fg-blockers','f-blocked':'fg-blocked' };
+    var fgId = fgMap[fieldId];
+    if (!fgId) return;
+    var fg  = document.getElementById(fgId);
+    var el  = document.getElementById(fieldId);
+    if (!fg) return;
+    if (el.value.trim()) { fg.classList.add('filled'); } else { fg.classList.remove('filled'); }
+  }
+  ['f-name','f-yesterday','f-today','f-blockers','f-blocked'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', function() { updateRequiredBorder(id); });
+    document.getElementById(id).addEventListener('change', function() { updateRequiredBorder(id); });
+  });
+
+  /* ── Clear form ── */
+  function clearForm() {
+    ['f-name','f-ticket','f-yesterday','f-today','f-blockers','f-support'].forEach(function(id) {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('f-blocked').value = '';
+    ['cc-yesterday','cc-today'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.textContent = '0 / 300'; el.className = 'char-counter'; }
+    });
+    ['fg-name','fg-yesterday','fg-today','fg-blockers','fg-blocked'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('filled');
+    });
+    clearErrors();
+  }
+
+  /* ── Validation ── */
+  function clearErrors() {
+    ['f-name','f-yesterday','f-today','f-blockers','f-blocked'].forEach(function(id) {
+      document.getElementById(id).classList.remove('invalid');
+    });
+    ['err-name','err-yesterday','err-today','err-blockers','err-blocked'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('visible');
+    });
+  }
+
+  function showError(fieldId, errId) {
+    document.getElementById(fieldId).classList.add('invalid');
+    var el = document.getElementById(errId);
+    if (el) el.classList.add('visible');
+  }
+
+  /* ── Status helpers ── */
+  function statusLabel(s) {
+    return s === 'yes'        ? '🔴 Blocked'
+         : s === 'inprogress' ? '🔵 In Progress'
+         : s === 'completed'  ? '🟢 Completed'
+         : '—';
+  }
+
+  function statusPillClass(s) {
+    return s === 'yes'        ? 'pill-blocked'
+         : s === 'inprogress' ? 'pill-inprogress'
+         : 'pill-completed';
+  }
+
+  function statusChipClass(s) {
+    return s === 'yes'        ? 'chip-blocked'
+         : s === 'inprogress' ? 'chip-inprogress'
+         : 'chip-completed';
+  }
+
+  function statusCardClass(s) {
+    return s === 'yes'        ? 'blocked'
+         : s === 'inprogress' ? 'inprogress'
+         : 'completed';
+  }
+
+  function avatarColor(name) {
+    var colors = [
+      'linear-gradient(135deg,#0F62FE,#4589FF)',
+      'linear-gradient(135deg,#8A3FFC,#A56EFF)',
+      'linear-gradient(135deg,#24A148,#42BE65)',
+      'linear-gradient(135deg,#FF6B2B,#FF9D6E)',
+      'linear-gradient(135deg,#0043CE,#0F62FE)',
+      'linear-gradient(135deg,#6929C4,#8A3FFC)'
+    ];
+    var idx = (name.charCodeAt(0) || 0) % colors.length;
+    return colors[idx];
+  }
+
+  /* ── Time ago ── */
+  function timeAgo(ts) {
+    var diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60)  return 'just now';
+    if (diff < 120) return '1 min ago';
+    if (diff < 3600)return Math.floor(diff/60) + ' mins ago';
+    return Math.floor(diff/3600) + 'h ago';
+  }
+
+  /* ── escHtml ── */
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Render cards ── */
+  function render() {
+    var container = document.getElementById('cards-container');
+    document.getElementById('member-count').textContent =
+      members.length + ' member' + (members.length !== 1 ? 's' : '');
+
+    if (members.length === 0) {
+      container.innerHTML = '<div class="empty"><span class="empty-icon">📋</span>No updates yet — add the first team member above.</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    members.forEach(function(m, idx) {
+      var card = document.createElement('div');
+      card.className = 'card ' + statusCardClass(m.blocked);
+      card.style.animationDelay = (idx * 60) + 'ms';
+
+      var initials = (m.name || '?').split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
+
+      card.innerHTML =
+        '<div class="card-header">' +
+          '<div class="card-header-left">' +
+            '<div class="card-avatar" style="background:' + avatarColor(m.name) + '" data-tip="' + escHtml(m.name) + '">' + escHtml(initials) + '</div>' +
+            '<div class="card-meta">' +
+              '<div class="card-name">' + escHtml(m.name) + '</div>' +
+              (m.ticket ? '<span class="card-ticket" data-tip="Ticket">' + escHtml(m.ticket) + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+          '<div class="card-actions">' +
+            '<button class="btn btn-edit" data-edit="' + m.id + '" data-tip="Edit update">✏ Edit</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card-fields">' +
+          '<div>' +
+            '<div class="field-label">📅 Yesterday</div>' +
+            '<div class="field-value">' + escHtml(m.yesterday || '—') + '</div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="field-label">🎯 Today</div>' +
+            '<div class="field-value">' + escHtml(m.today || '—') + '</div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="field-label">🚧 Blockers</div>' +
+            '<div class="field-value">' + escHtml(m.blockers || 'None') + '</div>' +
+          '</div>' +
+          (m.support ?
+          '<div>' +
+            '<div class="field-label">🤝 Support Needed</div>' +
+            '<div class="field-value">' + escHtml(m.support) + '</div>' +
+          '</div>' : '') +
+        '</div>' +
+        '<div class="card-footer">' +
+          '<span class="status-pill ' + statusPillClass(m.blocked) + '" data-tip="Current status">' + statusLabel(m.blocked) + '</span>' +
+          '<span data-tip="Last updated">⏱ ' + timeAgo(m.ts || Date.now()) + '</span>' +
+        '</div>';
+
+      container.appendChild(card);
+    });
+
+    container.onclick = function(e) {
+      var editId = e.target.getAttribute('data-edit') || (e.target.closest ? (e.target.closest('[data-edit]') || {getAttribute:function(){return null;}}).getAttribute('data-edit') : null);
+      if (editId) startEdit(editId);
+    };
+  }
+
+  /* ── Add / Save ── */
+  document.getElementById('submit-btn').addEventListener('click', function() {
+    clearErrors();
+    var valid    = true;
+    var name     = val('f-name');
+    var yesterday= val('f-yesterday');
+    var today    = val('f-today');
+    var blockers = val('f-blockers');
+    var blocked  = document.getElementById('f-blocked').value;
+
+    if (!name)      { showError('f-name',      'err-name');      valid = false; }
+    if (!yesterday) { showError('f-yesterday', 'err-yesterday'); valid = false; }
+    if (!today)     { showError('f-today',     'err-today');     valid = false; }
+    if (!blockers)  { showError('f-blockers',  'err-blockers');  valid = false; }
+    if (!blocked)   { showError('f-blocked',   'err-blocked');   valid = false; }
+    if (!valid) { document.querySelector('.invalid').focus(); return; }
+
+    var entry = {
+      id:        editingId || uid(),
+      name:      name,
+      ticket:    val('f-ticket'),
+      yesterday: yesterday,
+      today:     today,
+      blockers:  blockers,
+      blocked:   blocked,
+      support:   val('f-support'),
+      ts:        Date.now()
+    };
+
+    if (editingId) {
+      for (var i = 0; i < members.length; i++) {
+        if (members[i].id === editingId) { members[i] = entry; break; }
+      }
+      stopEdit();
+      showToast('✏ Update saved for ' + name);
+    } else {
+      members.push(entry);
+      showToast('✅ ' + name + ' added to stand-up!');
+    }
+
+    clearForm();
+    render();
+    hideSummary();
+  });
+
+  /* ── Edit ── */
+  function startEdit(id) {
+    var m = null;
+    for (var i = 0; i < members.length; i++) { if (members[i].id === id) { m = members[i]; break; } }
+    if (!m) return;
+    editingId = id;
+    set('f-name',      m.name);
+    set('f-ticket',    m.ticket);
+    set('f-yesterday', m.yesterday);
+    set('f-today',     m.today);
+    set('f-blockers',  m.blockers);
+    set('f-support',   m.support);
+    document.getElementById('f-blocked').value = m.blocked || '';
+
+    // Update char counters
+    ['f-yesterday','f-today'].forEach(function(fid) {
+      var field = document.getElementById(fid);
+      var cid   = fid === 'f-yesterday' ? 'cc-yesterday' : 'cc-today';
+      var max   = 300;
+      var len   = field.value.length;
+      var el    = document.getElementById(cid);
+      if (el) { el.textContent = len + ' / ' + max; }
+    });
+
+    // Update required borders
+    ['f-name','f-yesterday','f-today','f-blockers','f-blocked'].forEach(function(fid) { updateRequiredBorder(fid); });
+
+    document.getElementById('form-heading').textContent  = 'Edit Update — ' + m.name;
+    document.getElementById('submit-btn').querySelector('.btn-label').textContent = '💾 Save Changes';
+    document.getElementById('cancel-btn').style.display  = 'inline-flex';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.getElementById('f-name').focus();
+  }
+
+  function stopEdit() {
+    editingId = null;
+    document.getElementById('form-heading').textContent  = 'Add Team Member Update';
+    document.getElementById('submit-btn').querySelector('.btn-label').textContent = '➕ Add Update';
+    document.getElementById('cancel-btn').style.display  = 'none';
+  }
+
+  document.getElementById('cancel-btn').addEventListener('click', function() {
+    stopEdit();
+    clearForm();
+  });
+
+  /* ── Remove ── */
+  function removeMember(id) {
+    var m = members.find ? members.find(function(x){ return x.id === id; }) : null;
+    members = members.filter(function(x) { return x.id !== id; });
+    if (editingId === id) { stopEdit(); clearForm(); }
+    render();
+    hideSummary();
+    if (m) showToast('🗑 ' + m.name + ' removed.', '#525252');
+  }
+
+  /* ── Generate Summary ── */
+  document.getElementById('summary-btn').addEventListener('click', function() {
+    var btn = this;
+    btn.classList.add('spinning');
+    setTimeout(function() {
+      btn.classList.remove('spinning');
+      generateSummary();
+    }, 600);
+  });
+
+  /* ── Action Items Parser ── */
+  /*
+   * Parses each member's "support" field for name mentions.
+   * Patterns detected:
+   *   "Ram - <text>"        → assignee: Ram, desc: <text>
+   *   "@Ram <text>"         → assignee: Ram, desc: <text>
+   *   "Ram: <text>"         → assignee: Ram, desc: <text>
+   *   "Ram can/to <text>"   → assignee: Ram, desc: <text>
+   * Also: if support field is empty / "none" but status is blocked,
+   * records a generic "Team Lead" action to unblock.
+   */
+  function parseActionItems(members) {
+    var items = [];
+    var allNames = members.map(function(m) { return m.name.trim(); });
+
+    members.forEach(function(m) {
+      if (!m.support) {
+        /* Blocked with no support noted → flag for Scrum Master */
+        if (m.blocked === 'yes') {
+          items.push({
+            assignee: 'Scrum Master / Team Lead',
+            desc:     'Follow up with ' + m.name + ' to identify and resolve blocker.',
+            from:     m.name
+          });
+        }
+        return;
+      }
+
+      var raw = m.support.trim();
+
+      /* Try to match "Name - something" or "Name: something" or "@Name something" */
+      var matched = false;
+
+      /* Pattern 1 — "Name - desc"  or  "Name: desc" */
+      var p1 = raw.match(/^([A-Za-z][A-Za-z\s]{1,30}?)\s*[-:]\s*(.+)$/);
+      if (p1) {
+        items.push({ assignee: p1[1].trim(), desc: p1[2].trim(), from: m.name });
+        matched = true;
+      }
+
+      /* Pattern 2 — "@Name desc" */
+      if (!matched) {
+        var p2 = raw.match(/^@([A-Za-z][A-Za-z\s]{0,29}?)\s+(.+)$/);
+        if (p2) {
+          items.push({ assignee: p2[1].trim(), desc: p2[2].trim(), from: m.name });
+          matched = true;
+        }
+      }
+
+      /* Pattern 3 — "Name can/needs to/will/should <desc>" */
+      if (!matched) {
+        var p3 = raw.match(/^([A-Za-z][A-Za-z\s]{1,29}?)\s+(?:can|needs? to|will|should|please|to)\s+(.+)$/i);
+        if (p3) {
+          items.push({ assignee: p3[1].trim(), desc: p3[2].trim(), from: m.name });
+          matched = true;
+        }
+      }
+
+      /* Pattern 4 — known team member name appears anywhere in the text */
+      if (!matched) {
+        allNames.forEach(function(name) {
+          if (name === m.name) return; /* skip self */
+          if (raw.toLowerCase().indexOf(name.toLowerCase()) !== -1) {
+            var desc = raw.replace(new RegExp(name, 'i'), '').replace(/^\s*[-:,]\s*/, '').trim() || raw;
+            items.push({ assignee: name, desc: desc || raw, from: m.name });
+            matched = true;
+          }
+        });
+      }
+
+      /* Fallback — no name detected, assign to Scrum Master */
+      if (!matched && raw.toLowerCase() !== 'none' && raw !== '') {
+        items.push({
+          assignee: 'Scrum Master / Team Lead',
+          desc:     raw,
+          from:     m.name
+        });
+      }
+    });
+
+    /* Deduplicate by assignee+desc */
+    var seen = {};
+    return items.filter(function(a) {
+      var key = a.assignee + '|' + a.desc;
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+  }
+
+  function generateSummary() {
+    if (members.length === 0) { showToast('Add at least one team member first.', '#DA1E28'); return; }
+
+    var dateStr = now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    var blocked = members.filter(function(m) { return m.blocked === 'yes'; });
+    var onTrack = members.filter(function(m) { return m.blocked !== 'yes'; });
+    var pct     = Math.round((onTrack.length / members.length) * 100);
+    var fillClass = pct >= 80 ? 'healthy' : pct >= 50 ? 'warning' : 'critical';
+
+    var html = '';
+
+    /* Header */
+    html += '<div class="sum-header">'
+          +   '<div class="sum-title">Daily Stand-Up <span>Report</span></div>'
+          +   '<div class="sum-date">📅 ' + escHtml(dateStr) + '</div>'
+          + '</div>';
+
+    /* Stats */
+    html += '<div class="sum-stats">'
+          +   '<div class="stat-box blue"><span class="stat-emoji">👥</span><div class="stat-num">' + members.length + '</div><div class="stat-label">Team Members</div></div>'
+          +   '<div class="stat-box green"><span class="stat-emoji">🟢</span><div class="stat-num">' + onTrack.length + '</div><div class="stat-label">On Track</div></div>'
+          +   '<div class="stat-box' + (blocked.length > 0 ? ' red' : '') + '"><span class="stat-emoji">' + (blocked.length > 0 ? '🔴' : '✅') + '</span><div class="stat-num">' + blocked.length + '</div><div class="stat-label">Blocked</div></div>'
+          + '</div>';
+
+    /* Progress bar */
+    var barId = 'pbar-' + Date.now();
+    html += '<div class="progress-label"><span>TEAM HEALTH</span><span>' + pct + '% on track</span></div>'
+          + '<div class="progress-track"><div class="progress-fill ' + fillClass + '" id="' + barId + '" style="width:0%"></div></div>';
+
+    /* Escalation */
+    if (blocked.length > 0) {
+      html += '<div class="escalation-box">'
+            +   '<div class="escalation-title">⚠️ Escalation Required — ' + blocked.length + ' blocker' + (blocked.length > 1 ? 's' : '') + ' need immediate attention</div>';
+      blocked.forEach(function(m) {
+        html += '<div class="escalation-item">'
+              +   '<strong>' + escHtml(m.name) + (m.ticket ? ' <span style="font-weight:400;color:#525252;">[' + escHtml(m.ticket) + ']</span>' : '') + '</strong>'
+              +   escHtml(m.blockers || 'Blocker not described')
+              +   (m.support ? '<div class="esc-support">🤝 Support needed: ' + escHtml(m.support) + '</div>' : '')
+              + '</div>';
+      });
+      html += '</div>';
+    }
+
+    /* Member rows */
+    html += '<div class="sum-members">';
+    members.forEach(function(m, i) {
+      html += '<div class="sum-member-row' + (m.blocked === 'yes' ? ' escalate' : '') + '">'
+            +   '<div class="sum-member-top">'
+            +     '<span class="sum-member-name">' + (i+1) + '. ' + escHtml(m.name)
+            +       (m.ticket ? ' <span style="font-size:11px;font-weight:500;color:#525252;">[' + escHtml(m.ticket) + ']</span>' : '')
+            +     '</span>'
+            +     '<span class="sum-chip ' + statusChipClass(m.blocked) + '">' + statusLabel(m.blocked) + '</span>'
+            +   '</div>'
+            +   '<div class="sum-fields">'
+            +     '<span class="sum-field-lbl">📅 Yesterday</span><span class="sum-field-val">' + escHtml(m.yesterday || '—') + '</span>'
+            +     '<span class="sum-field-lbl">🎯 Today</span><span class="sum-field-val">'     + escHtml(m.today     || '—') + '</span>'
+            +     '<span class="sum-field-lbl">🚧 Blockers</span><span class="sum-field-val">'  + escHtml(m.blockers  || 'None') + '</span>'
+            +     (m.support ? '<span class="sum-field-lbl">🤝 Support</span><span class="sum-field-val">' + escHtml(m.support) + '</span>' : '')
+            +   '</div>'
+            + '</div>';
+    });
+    html += '</div>';
+
+    /* ── Action Items ── */
+    var actionItems = parseActionItems(members);
+    if (actionItems.length > 0) {
+      html += '<div class="action-items-box">'
+            +   '<div class="action-items-title">📋 Action Items</div>'
+            +   '<div class="action-items-list">';
+      actionItems.forEach(function(a, idx) {
+        html += '<div class="action-item">'
+              +   '<span class="action-idx">' + (idx + 1) + '</span>'
+              +   '<div class="action-body">'
+              +     '<div class="action-assignee">' + escHtml(a.assignee) + '</div>'
+              +     '<div class="action-desc">' + escHtml(a.desc) + '</div>'
+              +     '<div class="action-from">↳ Raised by <strong>' + escHtml(a.from) + '</strong></div>'
+              +   '</div>'
+              + '</div>';
+      });
+      html += '</div></div>';
+    }
+
+
+    var panel   = document.getElementById('summary-panel');
+    var section = document.getElementById('summary-section');
+    panel.innerHTML       = html;
+    panel.style.display   = 'block';
+    section.style.display = '';
+
+    /* Animate progress bar after paint */
+    setTimeout(function() {
+      var bar = document.getElementById(barId);
+      if (bar) bar.style.width = pct + '%';
+    }, 80);
+
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function hideSummary() {
+    var panel = document.getElementById('summary-panel');
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    document.getElementById('summary-section').style.display = 'none';
+  }
+
+  /* ── Init ── */
+  render();
+</script>
+</body>
+</html>
