@@ -328,6 +328,29 @@ input.invalid, textarea.invalid, select.invalid {
   margin-top: 2px;
   letter-spacing: .03em;
 }
+.card-role-badge {
+  display: inline-block;
+  font-size: 10px;
+  background: #F6F2FF;
+  color: #6929C4;
+  border: 1px solid #D4BBFF;
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+.sum-role-chip {
+  display: inline-block;
+  font-size: 10px;
+  background: #F6F2FF;
+  color: #6929C4;
+  border: 1px solid #D4BBFF;
+  border-radius: 99px;
+  padding: 1px 8px;
+  font-weight: 700;
+  margin-left: 5px;
+  vertical-align: middle;
+}
 .card-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
 /* ── Card body fields ── */
@@ -399,6 +422,60 @@ input.invalid, textarea.invalid, select.invalid {
   padding: 28px;
   box-shadow: var(--shadow-md);
   animation: fadeInUp .4s ease both;
+}
+
+/* ── Export buttons strip ── */
+.export-bar {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1.5px solid;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.btn-export-pdf {
+  background: #fff;
+  color: var(--danger);
+  border-color: #FFB3B8;
+}
+.btn-export-pdf:hover { background: #FFF1F1; transform: translateY(-1px); }
+.btn-export-txt {
+  background: #fff;
+  color: var(--ibm-blue);
+  border-color: #A8C8FF;
+}
+.btn-export-txt:hover { background: var(--ibm-blue-bg); transform: translateY(-1px); }
+
+/* ── Print styles — only summary panel prints ── */
+@media print {
+  body > *:not(#print-area) { display: none !important; }
+  #print-area {
+    display: block !important;
+    position: static;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+  }
+  .export-bar { display: none !important; }
+  #summary-panel {
+    display: block !important;
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
 }
 
 /* Summary header */
@@ -774,6 +851,17 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
         <span class="field-error" id="err-blocked">Please select a status.</span>
       </div>
 
+      <div class="form-group" id="fg-role">
+        <label for="f-role">👤 Role</label>
+        <select id="f-role">
+          <option value="">-- Select Role --</option>
+          <option value="BA">📋 BA</option>
+          <option value="Developer">💻 Developer</option>
+          <option value="QA">🔍 QA</option>
+          <option value="Scrum Master">🧭 Scrum Master</option>
+        </select>
+      </div>
+
       <div class="form-group" id="fg-support">
         <label for="f-support">🤝 Support Needed</label>
         <input type="text" id="f-support" placeholder="e.g. Review from backend team" />
@@ -803,7 +891,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     </button>
   </div>
 
-  <div class="cards-grid" id="cards-container">
+  <div class="cards-grid" id="cards-container" style="margin-bottom: 0.5cm;">
     <div class="empty">
       <span class="empty-icon">📋</span>
       No updates yet — add the first team member above.
@@ -878,7 +966,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
 
   /* ── Clear form ── */
   function clearForm() {
-    ['f-name','f-ticket','f-yesterday','f-today','f-blockers','f-support'].forEach(function(id) {
+    ['f-name','f-ticket','f-yesterday','f-today','f-blockers','f-support','f-role'].forEach(function(id) {
       document.getElementById(id).value = '';
     });
     document.getElementById('f-blocked').value = '';
@@ -989,7 +1077,10 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
             '<div class="card-avatar" style="background:' + avatarColor(m.name) + '" data-tip="' + escHtml(m.name) + '">' + escHtml(initials) + '</div>' +
             '<div class="card-meta">' +
               '<div class="card-name">' + escHtml(m.name) + '</div>' +
-              (m.ticket ? '<span class="card-ticket" data-tip="Ticket">' + escHtml(m.ticket) + '</span>' : '') +
+              '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px;">' +
+                (m.ticket ? '<span class="card-ticket" data-tip="Ticket">' + escHtml(m.ticket) + '</span>' : '') +
+                (m.role   ? '<span class="card-role-badge" data-tip="Role">' + escHtml(m.role) + '</span>' : '') +
+              '</div>' +
             '</div>' +
           '</div>' +
           '<div class="card-actions">' +
@@ -1050,6 +1141,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       id:        editingId || uid(),
       name:      name,
       ticket:    val('f-ticket'),
+      role:      document.getElementById('f-role').value,
       yesterday: yesterday,
       today:     today,
       blockers:  blockers,
@@ -1087,6 +1179,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     set('f-blockers',  m.blockers);
     set('f-support',   m.support);
     document.getElementById('f-blocked').value = m.blocked || '';
+    document.getElementById('f-role').value    = m.role    || '';
 
     // Update char counters
     ['f-yesterday','f-today'].forEach(function(fid) {
@@ -1280,6 +1373,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
             +   '<div class="sum-member-top">'
             +     '<span class="sum-member-name">' + (i+1) + '. ' + escHtml(m.name)
             +       (m.ticket ? ' <span style="font-size:11px;font-weight:500;color:#525252;">[' + escHtml(m.ticket) + ']</span>' : '')
+            +       (m.role   ? ' <span class="sum-role-chip">' + escHtml(m.role) + '</span>' : '')
             +     '</span>'
             +     '<span class="sum-chip ' + statusChipClass(m.blocked) + '">' + statusLabel(m.blocked) + '</span>'
             +   '</div>'
@@ -1313,11 +1407,22 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     }
 
 
+    /* Prepend export bar to html */
+    var exportBar = '<div class="export-bar">'
+      + '<button class="btn-export btn-export-txt" id="export-txt-btn">📄 Export TXT</button>'
+      + '<button class="btn-export btn-export-pdf" id="export-pdf-btn">🖨 Print / Save PDF</button>'
+      + '</div>';
+    html = exportBar + html;
+
     var panel   = document.getElementById('summary-panel');
     var section = document.getElementById('summary-section');
     panel.innerHTML       = html;
     panel.style.display   = 'block';
     section.style.display = '';
+
+    /* Wire export buttons */
+    document.getElementById('export-pdf-btn').addEventListener('click', exportPdf);
+    document.getElementById('export-txt-btn').addEventListener('click', exportTxt);
 
     /* Animate progress bar after paint */
     setTimeout(function() {
@@ -1326,6 +1431,114 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     }, 80);
 
     panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ── Export: PDF via browser print ── */
+  function exportPdf() {
+    /* Wrap the panel in a full-page print container */
+    var panelHtml = document.getElementById('summary-panel').innerHTML;
+    var dateStr   = now.toLocaleDateString('en-US', { year:'numeric', month:'2-digit', day:'2-digit' })
+                      .replace(/\//g, '-');
+    var win = window.open('', '_blank', 'width=900,height=700');
+    win.document.write(
+      '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Scrum Stand-Up — ' + dateStr + '</title>'
+      + '<style>'
+      + 'body{font-family:"IBM Plex Sans","Segoe UI",sans-serif;font-size:13px;color:#161616;padding:32px;line-height:1.6;}'
+      + '.export-bar{display:none!important;}'
+      + '.sum-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #E8F1FF;}'
+      + '.sum-title{font-size:18px;font-weight:700;} .sum-title span{color:#0F62FE;}'
+      + '.sum-date{font-size:12px;color:#525252;background:#E8F1FF;padding:4px 12px;border-radius:99px;}'
+      + '.sum-stats{display:flex;gap:12px;margin-bottom:20px;}'
+      + '.stat-box{flex:1;border:1px solid #DDE1E6;border-radius:10px;padding:14px;text-align:center;}'
+      + '.stat-box.blue{border-top:3px solid #0F62FE;} .stat-box.blue .stat-num{color:#0F62FE;}'
+      + '.stat-box.green{border-top:3px solid #24A148;} .stat-box.green .stat-num{color:#24A148;}'
+      + '.stat-box.red{border-top:3px solid #DA1E28;background:#FFF8F8;} .stat-box.red .stat-num{color:#DA1E28;}'
+      + '.stat-emoji{font-size:20px;display:block;margin-bottom:4px;}'
+      + '.stat-num{font-size:28px;font-weight:700;line-height:1;}'
+      + '.stat-label{font-size:10px;color:#525252;text-transform:uppercase;letter-spacing:.05em;margin-top:4px;}'
+      + '.progress-label{display:flex;justify-content:space-between;font-size:10px;font-weight:600;color:#525252;margin-bottom:5px;text-transform:uppercase;}'
+      + '.progress-track{height:9px;background:#DDE1E6;border-radius:99px;overflow:hidden;margin-bottom:20px;}'
+      + '.progress-fill{height:100%;border-radius:99px;}'
+      + '.progress-fill.healthy{background:linear-gradient(90deg,#24A148,#42BE65);}'
+      + '.progress-fill.warning{background:linear-gradient(90deg,#F1C21B,#F6D860);}'
+      + '.progress-fill.critical{background:linear-gradient(90deg,#DA1E28,#FA4D56);}'
+      + '.escalation-box{background:#FFF1F1;border:1px solid #FFB3B8;border-left:5px solid #DA1E28;border-radius:10px;padding:14px 18px;margin-bottom:20px;}'
+      + '.escalation-title{font-size:13px;font-weight:700;color:#DA1E28;margin-bottom:8px;}'
+      + '.escalation-item{font-size:12px;margin-bottom:6px;padding:7px 10px;background:#FFEEEE;border-radius:6px;border-left:3px solid #FFB3B8;}'
+      + '.escalation-item strong{display:block;font-size:12px;margin-bottom:2px;}'
+      + '.esc-support{color:#525252;font-size:10px;margin-top:2px;}'
+      + '.sum-members{display:flex;flex-direction:column;gap:12px;margin-bottom:20px;}'
+      + '.sum-member-row{background:#F4F6FB;border:1px solid #DDE1E6;border-radius:10px;padding:14px;}'
+      + '.sum-member-row.escalate{border-left:4px solid #DA1E28;background:#FFF8F8;}'
+      + '.sum-member-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}'
+      + '.sum-member-name{font-size:13px;font-weight:700;}'
+      + '.sum-chip{font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;border:1px solid transparent;}'
+      + '.chip-blocked{background:#FFF1F1;color:#DA1E28;border-color:#FFB3B8;}'
+      + '.chip-inprogress{background:#EDF5FF;color:#0F62FE;border-color:#A8C8FF;}'
+      + '.chip-completed{background:#DEFBE6;color:#0E6027;border-color:#A7F0BA;}'
+      + '.sum-fields{display:grid;grid-template-columns:90px 1fr;gap:5px 10px;font-size:12px;}'
+      + '.sum-field-lbl{color:#525252;font-weight:600;}'
+      + '.sum-field-val{color:#161616;}'
+      + '.action-items-box{background:#F0F7FF;border:1px solid #A8C8FF;border-left:5px solid #0F62FE;border-radius:10px;padding:14px 18px;margin-bottom:20px;}'
+      + '.action-items-title{font-size:13px;font-weight:700;color:#0F62FE;margin-bottom:10px;}'
+      + '.action-items-list{display:flex;flex-direction:column;gap:8px;}'
+      + '.action-item{display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid #D0E2FF;border-radius:7px;padding:9px 12px;}'
+      + '.action-idx{min-width:20px;height:20px;border-radius:50%;background:#0F62FE;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}'
+      + '.action-assignee{font-size:12px;font-weight:700;color:#0043CE;margin-bottom:2px;}'
+      + '.action-desc{font-size:12px;color:#161616;margin-bottom:3px;}'
+      + '.action-from{font-size:10px;color:#525252;}'
+      + '@media print{.export-bar{display:none!important;}}'
+      + '</style></head><body>'
+      + panelHtml.replace(/<div class="export-bar">[\s\S]*?<\/div>/, '')
+      + '</body></html>'
+    );
+    win.document.close();
+    win.focus();
+    setTimeout(function() { win.print(); }, 400);
+  }
+
+  /* ── Export: plain text download ── */
+  function exportTxt() {
+    var dateStr = now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    var lines   = [];
+    lines.push('DAILY STAND-UP REPORT');
+    lines.push(dateStr);
+    lines.push('='.repeat(50));
+    lines.push('');
+
+    members.forEach(function(m, i) {
+      lines.push((i + 1) + '. ' + m.name + (m.ticket ? '  [' + m.ticket + ']' : '') + (m.role ? '  (' + m.role + ')' : '') + '  (' + statusLabel(m.blocked).replace(/[🔴🔵🟢]/g, '').trim() + ')');
+      lines.push('   Yesterday : ' + (m.yesterday || '—'));
+      lines.push('   Today     : ' + (m.today     || '—'));
+      lines.push('   Blockers  : ' + (m.blockers  || 'None'));
+      if (m.support) lines.push('   Support   : ' + m.support);
+      lines.push('');
+    });
+
+    /* Action items */
+    var actions = parseActionItems(members);
+    if (actions.length > 0) {
+      lines.push('-'.repeat(50));
+      lines.push('ACTION ITEMS');
+      lines.push('-'.repeat(50));
+      actions.forEach(function(a, i) {
+        lines.push((i + 1) + '. [' + a.assignee + '] ' + a.desc + '  (raised by ' + a.from + ')');
+      });
+      lines.push('');
+    }
+
+    var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    var filename = 'standup-' + now.toISOString().slice(0,10) + '.txt';
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('📄 Exported as ' + filename);
   }
 
   function hideSummary() {
