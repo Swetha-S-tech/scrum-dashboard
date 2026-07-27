@@ -1482,23 +1482,37 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
 
   function deleteTeam(key) {
     var team = TEAMS[key];
+    /* Step 1 — password verification */
     showModal({
-      icon: '🗑',
-      title: 'Delete "' + team.label + '"?',
-      desc: 'This permanently deletes the team board and ALL their scrum data. Cannot be undone.',
-      okLabel: 'Yes, Delete',
+      icon: '🔒',
+      title: 'Admin Verification',
+      desc: 'Enter the admin password to delete "' + team.label + '".',
+      password: true,
+      okLabel: 'Verify',
       okColor: 'red',
+      correctPwd: ADMIN_PWD,
       onOk: function() {
-        db.ref('teams/' + key).remove();
-        var isDefault = (key === 'notification-wizards' || key === 'notification-team2');
-        if (!isDefault) registryRef.child(key).remove();
-        delete TEAMS[key];
-        var datalist = document.getElementById('team-suggestions');
-        for (var i = datalist.options.length - 1; i >= 0; i--) {
-          if (datalist.options[i].value === team.label) { datalist.remove(i); break; }
-        }
-        showSettingsMsg('✅ "' + team.label + '" deleted.', 'ok');
-        renderSettingsTeams();
+        /* Step 2 — Yes / Cancel confirmation */
+        showModal({
+          icon: '🗑',
+          title: 'Delete "' + team.label + '"?',
+          desc: 'This permanently deletes the team board and ALL their scrum data. This cannot be undone.',
+          okLabel: 'Yes, Delete',
+          cancelLabel: 'Cancel',
+          okColor: 'red',
+          onOk: function() {
+            db.ref('teams/' + key).remove();
+            var isDefault = (key === 'notification-wizards' || key === 'notification-team2');
+            if (!isDefault) registryRef.child(key).remove();
+            delete TEAMS[key];
+            var datalist = document.getElementById('team-suggestions');
+            for (var i = datalist.options.length - 1; i >= 0; i--) {
+              if (datalist.options[i].value === team.label) { datalist.remove(i); break; }
+            }
+            showSettingsMsg('✅ "' + team.label + '" deleted.', 'ok');
+            renderSettingsTeams();
+          }
+        });
       }
     });
   }
@@ -1684,16 +1698,17 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
         document.getElementById('modal-pwd').focus();
         return;
       }
+      var cb = opts.onOk;
       closeModal();
-      if (modalCallback) { modalCallback(); modalCallback = null; }
-      else if (opts.onOk) opts.onOk();
+      if (cb) cb();
       return;
     }
 
     /* Input mode — pass value */
     var inputVal = document.getElementById('modal-input').value.trim();
+    var cb2 = opts.onOk;
     closeModal();
-    if (opts.onOk) opts.onOk(inputVal);
+    if (cb2) cb2(inputVal);
   });
 
   /* Enter key submits modal */
