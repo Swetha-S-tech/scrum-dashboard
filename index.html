@@ -1560,8 +1560,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
 
   function deleteTeam(key) {
     var teamLabel = TEAMS[key] ? TEAMS[key].label : key;
-    pendingDeleteKey = null;
-    /* Step 1 — password */
+    /* Step 1 — password modal */
     showModal({
       icon: '🔒',
       title: 'Admin Verification',
@@ -1571,23 +1570,21 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       okColor: 'red',
       correctPwd: ADMIN_PWD,
       onOk: function() {
-        pendingDeleteKey = key;
-        /* Step 2 — shown fresh after modal fully closes */
-        showModal({
+        /* Step 2 — advance the same modal in-place to confirm */
+        advanceModal({
           icon: '🗑',
           title: 'Delete "' + teamLabel + '"?',
           desc: 'This permanently deletes the team board and ALL their scrum data. This cannot be undone.',
           okLabel: 'Yes, Delete',
           okColor: 'red',
           onOk: function() {
-            var k = pendingDeleteKey;
-            pendingDeleteKey = null;
-            if (!k || !TEAMS[k]) return;
-            var lbl = TEAMS[k].label;
-            db.ref('teams/' + k).remove();
-            var isDefault = (k === 'notification-wizards' || k === 'notification-team2');
-            if (!isDefault) registryRef.child(k).remove();
-            delete TEAMS[k];
+            closeModal();
+            if (!TEAMS[key]) return;
+            var lbl = TEAMS[key].label;
+            db.ref('teams/' + key).remove();
+            var isDefault = (key === 'notification-wizards' || key === 'notification-team2');
+            if (!isDefault) registryRef.child(key).remove();
+            delete TEAMS[key];
             var datalist = document.getElementById('team-suggestions');
             for (var i = datalist.options.length - 1; i >= 0; i--) {
               if (datalist.options[i].value === lbl) { datalist.remove(i); break; }
@@ -1763,7 +1760,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   var modalOpts     = null;
 
   function showModal(opts) {
-    modalOpts    = opts;
+    modalOpts     = opts;
     modalCallback = opts.onOk;
 
     var overlay = document.getElementById('modal-overlay');
@@ -1776,7 +1773,6 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     document.getElementById('modal-title').textContent = opts.title || '';
     document.getElementById('modal-desc').textContent  = opts.desc  || '';
 
-    /* Show correct input */
     inp.style.display = opts.inputPlaceholder ? 'block' : 'none';
     inp.placeholder   = opts.inputPlaceholder || '';
     inp.value         = '';
@@ -1784,7 +1780,6 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     pwd.value         = '';
     err.style.display = 'none';
 
-    /* OK button colour */
     okBtn.textContent = opts.okLabel || 'OK';
     okBtn.style.background = opts.okColor === 'red'
       ? 'linear-gradient(135deg,#DA1E28,#FA4D56)'
@@ -1800,6 +1795,42 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     }, 80);
   }
 
+  /* Transition the modal in-place to a new set of opts (no close/reopen) */
+  function advanceModal(opts) {
+    modalOpts     = opts;
+    modalCallback = opts.onOk;
+
+    document.getElementById('modal-icon').textContent  = opts.icon  || '';
+    document.getElementById('modal-title').textContent = opts.title || '';
+    document.getElementById('modal-desc').textContent  = opts.desc  || '';
+
+    var inp   = document.getElementById('modal-input');
+    var pwd   = document.getElementById('modal-pwd');
+    var err   = document.getElementById('modal-error');
+    var okBtn = document.getElementById('modal-ok-btn');
+
+    inp.style.display = opts.inputPlaceholder ? 'block' : 'none';
+    inp.placeholder   = opts.inputPlaceholder || '';
+    inp.value         = '';
+    pwd.style.display = opts.password ? 'block' : 'none';
+    pwd.value         = '';
+    err.style.display = 'none';
+
+    okBtn.textContent = opts.okLabel || 'OK';
+    okBtn.style.background = opts.okColor === 'red'
+      ? 'linear-gradient(135deg,#DA1E28,#FA4D56)'
+      : 'linear-gradient(135deg,#0F62FE,#4589FF)';
+    okBtn.style.boxShadow = opts.okColor === 'red'
+      ? '0 4px 12px rgba(218,30,40,.3)'
+      : '0 4px 12px rgba(15,98,254,.3)';
+
+    setTimeout(function() {
+      if (opts.inputPlaceholder) inp.focus();
+      if (opts.password)         pwd.focus();
+      else                       okBtn.focus();
+    }, 50);
+  }
+
   function closeModal() {
     document.getElementById('modal-overlay').style.display = 'none';
     document.getElementById('modal-input').value = '';
@@ -1811,7 +1842,6 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
 
   /* Modal button handlers */
   document.getElementById('modal-overlay').addEventListener('click', function(e) {
-    /* only close if clicking directly on backdrop, not on any child */
     if (e.target === this) closeModal();
   });
   document.getElementById('modal-ok-btn').addEventListener('click', function(e) {
@@ -1819,7 +1849,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     var opts = modalOpts;
     if (!opts) return;
 
-    /* Password mode — validate then advance */
+    /* Password step — validate, then advance in-place to confirm step */
     if (opts.password) {
       var entered = document.getElementById('modal-pwd').value;
       if (entered !== opts.correctPwd) {
@@ -1827,18 +1857,17 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
         document.getElementById('modal-pwd').focus();
         return;
       }
+      /* Password correct — run onOk which calls advanceModal for next step */
       var cb = opts.onOk;
-      /* fully close first, then open next modal on next event loop tick */
-      closeModal();
-      if (cb) window.setTimeout(cb, 50);
+      if (cb) cb();
       return;
     }
 
-    /* Plain confirm mode */
+    /* Plain confirm step — execute and close */
     var inputVal = document.getElementById('modal-input').value.trim();
     var cb2 = opts.onOk;
     closeModal();
-    if (cb2) window.setTimeout(function() { cb2(inputVal); }, 50);
+    if (cb2) cb2(inputVal);
   });
 
   document.getElementById('modal-cancel-btn').addEventListener('click', function(e) {
@@ -2240,10 +2269,8 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   }
 
   /* ── Delete All ── */
-  var pendingDeleteAll = false;
   document.getElementById('delete-all-btn').addEventListener('click', function() {
     if (members.length === 0) { showToast('No members to delete.', '#525252'); return; }
-    pendingDeleteAll = false;
     /* Step 1 — password */
     showModal({
       icon: '🔒',
@@ -2254,18 +2281,16 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       okColor: 'red',
       correctPwd: DELETE_ALL_PWD,
       onOk: function() {
-        pendingDeleteAll = true;
         var count = members.length;
-        /* Step 2 — confirm (opens after 50ms gap) */
-        showModal({
+        /* Step 2 — advance same modal in-place to confirm */
+        advanceModal({
           icon: '⚠️',
           title: 'Delete All Updates?',
           desc: 'This will permanently delete all ' + count + ' team member update(s). This cannot be undone.',
           okLabel: 'Yes, Delete All',
           okColor: 'red',
           onOk: function() {
-            if (!pendingDeleteAll) return;
-            pendingDeleteAll = false;
+            closeModal();
             membersRef.remove();
             historyRef.remove();
             history = {};
