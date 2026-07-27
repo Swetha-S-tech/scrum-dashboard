@@ -1152,23 +1152,24 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       <div class="settings-section-title">📋 All Team Boards</div>
       <div class="teams-list" id="settings-teams-list"></div>
 
-      <!-- Inline edit form -->
-      <div class="settings-edit-form" id="settings-edit-form">
-        <div style="font-size:12px;font-weight:700;color:#0F62FE;margin-bottom:10px;">✏️ Edit Team: <span id="edit-form-team-label"></span></div>
-        <label>New Team Name</label>
-        <input type="text" id="edit-team-name" placeholder="Team name" />
-        <label>New Password</label>
-        <input type="password" id="edit-team-pwd" placeholder="Leave blank to keep current" />
-        <label>Confirm New Password</label>
-        <input type="password" id="edit-team-pwd2" placeholder="Re-enter new password" />
+      <!-- Inline edit form (legacy, hidden — kept for JS references) -->
+      <div class="settings-edit-form" id="settings-edit-form" style="display:none!important;">
+        <span id="edit-form-team-label"></span>
+        <input type="text"     id="edit-team-name" />
+        <input type="password" id="edit-team-pwd"  />
+        <input type="password" id="edit-team-pwd2" />
         <div class="settings-msg" id="edit-msg"></div>
-        <div style="display:flex;gap:8px;margin-top:12px;">
-          <button class="login-btn" id="edit-save-btn" style="margin-top:0;flex:1;padding:9px;">Save Changes</button>
-          <button class="settings-btn" id="edit-cancel-btn" style="flex:0 0 auto;">Cancel</button>
-        </div>
+        <button id="edit-save-btn"></button>
+        <button id="edit-cancel-btn"></button>
       </div>
 
       <div class="settings-msg ok" id="settings-global-msg"></div>
+
+      <!-- ── Footer buttons ── -->
+      <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid #DDE1E6;">
+        <button class="login-btn" id="settings-save-close-btn" style="margin-top:0;flex:1;padding:10px;font-size:13px;">💾 Save Changes</button>
+        <button class="settings-btn" id="settings-discard-btn" style="flex:0 0 auto;padding:10px 16px;">Discard & Close</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1553,12 +1554,12 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   });
 
   function deleteTeam(key) {
-    var team = TEAMS[key];
+    var teamLabel = TEAMS[key] ? TEAMS[key].label : key;
     /* Step 1 — password verification */
     showModal({
       icon: '🔒',
       title: 'Admin Verification',
-      desc: 'Enter the admin password to delete "' + team.label + '".',
+      desc: 'Enter the admin password to delete "' + teamLabel + '".',
       password: true,
       okLabel: 'Verify',
       okColor: 'red',
@@ -1567,10 +1568,9 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
         /* Step 2 — Yes / Cancel confirmation */
         showModal({
           icon: '🗑',
-          title: 'Delete "' + team.label + '"?',
+          title: 'Delete "' + teamLabel + '"?',
           desc: 'This permanently deletes the team board and ALL their scrum data. This cannot be undone.',
           okLabel: 'Yes, Delete',
-          cancelLabel: 'Cancel',
           okColor: 'red',
           onOk: function() {
             db.ref('teams/' + key).remove();
@@ -1579,9 +1579,9 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
             delete TEAMS[key];
             var datalist = document.getElementById('team-suggestions');
             for (var i = datalist.options.length - 1; i >= 0; i--) {
-              if (datalist.options[i].value === team.label) { datalist.remove(i); break; }
+              if (datalist.options[i].value === teamLabel) { datalist.remove(i); break; }
             }
-            showSettingsMsg('✅ "' + team.label + '" deleted.', 'ok');
+            showSettingsMsg('✅ "' + teamLabel + '" deleted.', 'ok');
             renderSettingsTeams();
           }
         });
@@ -1594,6 +1594,51 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     el.textContent = msg; el.className = 'settings-msg ' + type; el.style.display = 'block';
     setTimeout(function() { el.style.display = 'none'; }, 3000);
   }
+
+  /* ── Settings footer: Save Changes (saves any open inline edit then closes) ── */
+  document.getElementById('settings-save-close-btn').addEventListener('click', function() {
+    /* find any open inline edit expand and save it first */
+    var openExpand = document.querySelector('.team-row-edit-expand.open');
+    if (openExpand) {
+      /* derive key from the expand's id: "row-{uid}-expand" */
+      var rawUid = openExpand.id.replace('-expand', '').replace('row-', '');
+      /* find matching TEAMS key by reverse-matching the uid pattern */
+      var matchKey = null;
+      Object.keys(TEAMS).forEach(function(k) {
+        if (k.replace(/[^a-z0-9]/gi, '_') === rawUid) matchKey = k;
+      });
+      if (matchKey) {
+        var newName = document.getElementById(openExpand.id.replace('-expand', '') + '-inp-name').value.trim();
+        var newPwd1 = document.getElementById(openExpand.id.replace('-expand', '') + '-inp-pwd').value;
+        var newPwd2 = document.getElementById(openExpand.id.replace('-expand', '') + '-inp-pwd2').value;
+        var msgEl   = document.getElementById(openExpand.id.replace('-expand', '') + '-msg');
+        msgEl.className = 'row-edit-msg';
+        if (!newName)                       { msgEl.textContent = '❌ Name cannot be empty.';   msgEl.className = 'row-edit-msg err'; return; }
+        if (newPwd1 && newPwd1 !== newPwd2) { msgEl.textContent = '❌ Passwords do not match.'; msgEl.className = 'row-edit-msg err'; return; }
+        if (newPwd1 && newPwd1.length < 6)  { msgEl.textContent = '❌ Min 6 characters.';        msgEl.className = 'row-edit-msg err'; return; }
+        var updates = { label: newName };
+        if (newPwd1) updates.password = newPwd1;
+        TEAMS[matchKey].label = newName;
+        if (newPwd1) TEAMS[matchKey].password = newPwd1;
+        var isDefault = (matchKey === 'notification-wizards' || matchKey === 'notification-team2');
+        if (!isDefault) {
+          registryRef.child(matchKey).update(updates, function(err) {
+            if (err) { msgEl.textContent = '❌ Failed to save.'; msgEl.className = 'row-edit-msg err'; return; }
+            closeSettings();
+            showToast('✅ Changes saved successfully.', '#24A148');
+          });
+          return;
+        }
+      }
+    }
+    /* no open edits — just close */
+    closeSettings();
+    showToast('✅ Settings closed.', '#24A148');
+  });
+
+  document.getElementById('settings-discard-btn').addEventListener('click', function() {
+    closeSettings();
+  });
 
   /* ── Toggle create panel ── */
   document.getElementById('toggle-create-btn').addEventListener('click', function() {
