@@ -1799,11 +1799,11 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   }
 
   /* Modal button handlers */
-  document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
   document.getElementById('modal-overlay').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
-  document.getElementById('modal-ok-btn').addEventListener('click', function() {
+  document.getElementById('modal-ok-btn').addEventListener('click', function(e) {
+    e.stopPropagation();
     var opts = modalOpts;
     if (!opts) return;
 
@@ -1817,15 +1817,20 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       }
       var cb = opts.onOk;
       closeModal();
-      if (cb) cb();
+      if (cb) setTimeout(cb, 0);
       return;
     }
 
-    /* Input mode — pass value */
+    /* Input / plain confirm mode */
     var inputVal = document.getElementById('modal-input').value.trim();
     var cb2 = opts.onOk;
     closeModal();
-    if (cb2) cb2(inputVal);
+    if (cb2) setTimeout(function() { cb2(inputVal); }, 0);
+  });
+
+  document.getElementById('modal-cancel-btn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    closeModal();
   });
 
   /* Enter key submits modal */
