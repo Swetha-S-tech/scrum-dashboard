@@ -988,6 +988,22 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
 <!-- ── TOAST ── -->
 <div id="toast">✓ <span id="toast-msg">Update saved successfully.</span></div>
 
+<!-- ── CUSTOM MODAL ── -->
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9998;align-items:center;justify-content:center;">
+  <div id="modal-box" style="background:#fff;border-radius:16px;padding:28px 28px 22px;max-width:420px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.22);font-family:'IBM Plex Sans','Segoe UI',sans-serif;position:relative;">
+    <div id="modal-icon" style="font-size:28px;margin-bottom:10px;"></div>
+    <div id="modal-title" style="font-size:16px;font-weight:700;color:#161616;margin-bottom:6px;"></div>
+    <div id="modal-desc"  style="font-size:13px;color:#525252;margin-bottom:16px;line-height:1.5;"></div>
+    <input  id="modal-input" type="text"     style="display:none;width:100%;padding:10px 12px;border:1.5px solid #DDE1E6;border-radius:8px;font-size:13px;font-family:inherit;outline:none;margin-bottom:14px;" placeholder="" />
+    <input  id="modal-pwd"   type="password" style="display:none;width:100%;padding:10px 12px;border:1.5px solid #DDE1E6;border-radius:8px;font-size:13px;font-family:inherit;outline:none;margin-bottom:14px;" placeholder="Enter password" />
+    <div id="modal-error" style="display:none;font-size:11px;color:#DA1E28;font-weight:600;margin-bottom:10px;margin-top:-8px;">Incorrect password. Try again.</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button id="modal-cancel-btn" style="padding:8px 18px;border-radius:99px;border:1.5px solid #DDE1E6;background:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+      <button id="modal-ok-btn"     style="padding:8px 20px;border-radius:99px;border:none;background:linear-gradient(135deg,#0F62FE,#4589FF);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(15,98,254,.3);">OK</button>
+    </div>
+  </div>
+</div>
+
 <footer>Made with <span>IBM Bob</span></footer>
 
 <script>
@@ -1020,6 +1036,90 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
   function val(id) { return document.getElementById(id).value.trim(); }
   function set(id, v) { document.getElementById(id).value = v || ''; }
+
+  /* ── Custom Modal Engine ── */
+  var modalCallback = null;
+  var modalOpts     = null;
+
+  function showModal(opts) {
+    modalOpts    = opts;
+    modalCallback = opts.onOk;
+
+    var overlay = document.getElementById('modal-overlay');
+    var inp     = document.getElementById('modal-input');
+    var pwd     = document.getElementById('modal-pwd');
+    var err     = document.getElementById('modal-error');
+    var okBtn   = document.getElementById('modal-ok-btn');
+
+    document.getElementById('modal-icon').textContent  = opts.icon  || '';
+    document.getElementById('modal-title').textContent = opts.title || '';
+    document.getElementById('modal-desc').textContent  = opts.desc  || '';
+
+    /* Show correct input */
+    inp.style.display = opts.inputPlaceholder ? 'block' : 'none';
+    inp.placeholder   = opts.inputPlaceholder || '';
+    inp.value         = '';
+    pwd.style.display = opts.password ? 'block' : 'none';
+    pwd.value         = '';
+    err.style.display = 'none';
+
+    /* OK button colour */
+    okBtn.textContent = opts.okLabel || 'OK';
+    okBtn.style.background = opts.okColor === 'red'
+      ? 'linear-gradient(135deg,#DA1E28,#FA4D56)'
+      : 'linear-gradient(135deg,#0F62FE,#4589FF)';
+    okBtn.style.boxShadow = opts.okColor === 'red'
+      ? '0 4px 12px rgba(218,30,40,.3)'
+      : '0 4px 12px rgba(15,98,254,.3)';
+
+    overlay.style.display = 'flex';
+    setTimeout(function() {
+      if (opts.inputPlaceholder) inp.focus();
+      if (opts.password)         pwd.focus();
+    }, 80);
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').style.display = 'none';
+    document.getElementById('modal-input').value = '';
+    document.getElementById('modal-pwd').value   = '';
+    document.getElementById('modal-error').style.display = 'none';
+    modalCallback = null;
+    modalOpts     = null;
+  }
+
+  /* Modal button handlers */
+  document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
+  document.getElementById('modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+  document.getElementById('modal-ok-btn').addEventListener('click', function() {
+    var opts = modalOpts;
+    if (!opts) return;
+
+    /* Password mode — validate before calling onOk */
+    if (opts.password) {
+      var entered = document.getElementById('modal-pwd').value;
+      if (entered !== opts.correctPwd) {
+        document.getElementById('modal-error').style.display = 'block';
+        document.getElementById('modal-pwd').focus();
+        return;
+      }
+      closeModal();
+      if (modalCallback) { modalCallback(); modalCallback = null; }
+      else if (opts.onOk) opts.onOk();
+      return;
+    }
+
+    /* Input mode — pass value */
+    var inputVal = document.getElementById('modal-input').value.trim();
+    closeModal();
+    if (opts.onOk) opts.onOk(inputVal);
+  });
+
+  /* Enter key submits modal */
+  document.getElementById('modal-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('modal-ok-btn').click(); });
+  document.getElementById('modal-pwd').addEventListener('keydown',   function(e) { if (e.key === 'Enter') document.getElementById('modal-ok-btn').click(); });
 
   /* ── Toast ── */
   function showToast(msg, color) {
@@ -1291,17 +1391,27 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     for (var i = 0; i < members.length; i++) { if (members[i].id === id) { m = members[i]; break; } }
     if (!m) return;
 
-    /* Ask who is trying to edit */
-    var who = (window.prompt('Please enter your name to edit your update:') || '').trim();
-    if (!who) return;
+    /* Ask who is trying to edit — custom modal */
+    showModal({
+      icon: '✏️',
+      title: 'Verify your identity',
+      desc: 'Enter your name to edit your update.',
+      inputPlaceholder: 'Your name',
+      okLabel: 'Continue',
+      okColor: 'blue',
+      onOk: function(who) {
+        if (!who) return;
+        if (who.toLowerCase() !== m.name.toLowerCase()) {
+          showToast('🚫 You can only edit your own update. This update belongs to ' + m.name + '.', '#DA1E28');
+          return;
+        }
+        doStartEdit(m);
+      }
+    });
+  }
 
-    /* Case-insensitive name match */
-    if (who.toLowerCase() !== m.name.toLowerCase()) {
-      showToast('🚫 You can only edit your own update. This update belongs to ' + m.name + '.', '#DA1E28');
-      return;
-    }
-
-    editingId = id;
+  function doStartEdit(m) {
+    editingId = m.id;
     set('f-name',      m.name);
     set('f-ticket',    m.ticket);
     set('f-yesterday', m.yesterday);
@@ -1402,25 +1512,36 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
 
   /* ── Delete All ── */
   document.getElementById('delete-all-btn').addEventListener('click', function() {
-    if (members.length === 0) {
-      showToast('No members to delete.', '#525252');
-      return;
-    }
-    var pwd = window.prompt('🔒 Enter admin password to delete all updates:');
-    if (pwd === null) return; /* cancelled */
-    if (pwd !== 'Scrum!!007') {
-      showToast('🚫 Incorrect password. Action blocked.', '#DA1E28');
-      return;
-    }
-    var confirmed = window.confirm('⚠️ This will permanently delete ALL ' + members.length + ' team member update(s). Are you sure?');
-    if (!confirmed) return;
-    membersRef.remove();
-    historyRef.remove();
-    history = {};
-    stopEdit();
-    clearForm();
-    hideSummary();
-    showToast('🗑 All updates deleted.', '#525252');
+    if (members.length === 0) { showToast('No members to delete.', '#525252'); return; }
+    /* Step 1 — password */
+    showModal({
+      icon: '🔒',
+      title: 'Admin Password Required',
+      desc: 'Enter the admin password to delete all updates.',
+      password: true,
+      okLabel: 'Verify',
+      okColor: 'red',
+      correctPwd: 'Scrum!!007',
+      onOk: function() {
+        /* Step 2 — confirm */
+        showModal({
+          icon: '⚠️',
+          title: 'Delete All Updates?',
+          desc: 'This will permanently delete all ' + members.length + ' team member update(s). This cannot be undone.',
+          okLabel: 'Yes, Delete All',
+          okColor: 'red',
+          onOk: function() {
+            membersRef.remove();
+            historyRef.remove();
+            history = {};
+            stopEdit();
+            clearForm();
+            hideSummary();
+            showToast('🗑 All updates deleted.', '#525252');
+          }
+        });
+      }
+    });
   });
 
   /* ── Generate Summary ── */
