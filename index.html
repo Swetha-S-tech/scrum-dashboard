@@ -1397,8 +1397,9 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   });
 
   /* ── Settings ── */
-  var ADMIN_PWD = 'Password123!';
-  var editingTeamKey = null;
+  var ADMIN_PWD        = 'Password123!';
+  var editingTeamKey   = null;
+  var pendingDeleteKey = null;
 
   document.getElementById('settings-open-btn').addEventListener('click', function() {
     document.getElementById('settings-auth').style.display     = 'block';
@@ -1415,9 +1416,11 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   });
 
   function closeSettings() {
+    closeModal();                  /* clear any stale modal left open inside settings */
     document.getElementById('settings-overlay').classList.remove('open');
     document.getElementById('settings-edit-form').classList.remove('open');
-    editingTeamKey = null;
+    editingTeamKey   = null;
+    pendingDeleteKey = null;
   }
 
   document.getElementById('settings-auth-btn').addEventListener('click', function() {
@@ -1555,7 +1558,8 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
 
   function deleteTeam(key) {
     var teamLabel = TEAMS[key] ? TEAMS[key].label : key;
-    /* Step 1 — password verification */
+    pendingDeleteKey = null;
+    /* Step 1 — password */
     showModal({
       icon: '🔒',
       title: 'Admin Verification',
@@ -1565,7 +1569,8 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       okColor: 'red',
       correctPwd: ADMIN_PWD,
       onOk: function() {
-        /* Step 2 — Yes / Cancel confirmation */
+        pendingDeleteKey = key;
+        /* Step 2 — shown fresh after modal fully closes */
         showModal({
           icon: '🗑',
           title: 'Delete "' + teamLabel + '"?',
@@ -1573,15 +1578,19 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
           okLabel: 'Yes, Delete',
           okColor: 'red',
           onOk: function() {
-            db.ref('teams/' + key).remove();
-            var isDefault = (key === 'notification-wizards' || key === 'notification-team2');
-            if (!isDefault) registryRef.child(key).remove();
-            delete TEAMS[key];
+            var k = pendingDeleteKey;
+            pendingDeleteKey = null;
+            if (!k || !TEAMS[k]) return;
+            var lbl = TEAMS[k].label;
+            db.ref('teams/' + k).remove();
+            var isDefault = (k === 'notification-wizards' || k === 'notification-team2');
+            if (!isDefault) registryRef.child(k).remove();
+            delete TEAMS[k];
             var datalist = document.getElementById('team-suggestions');
             for (var i = datalist.options.length - 1; i >= 0; i--) {
-              if (datalist.options[i].value === teamLabel) { datalist.remove(i); break; }
+              if (datalist.options[i].value === lbl) { datalist.remove(i); break; }
             }
-            showSettingsMsg('✅ "' + teamLabel + '" deleted.', 'ok');
+            showSettingsMsg('✅ "' + lbl + '" deleted.', 'ok');
             renderSettingsTeams();
           }
         });
@@ -1800,6 +1809,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
 
   /* Modal button handlers */
   document.getElementById('modal-overlay').addEventListener('click', function(e) {
+    /* only close if clicking directly on backdrop, not on any child */
     if (e.target === this) closeModal();
   });
   document.getElementById('modal-ok-btn').addEventListener('click', function(e) {
@@ -1807,7 +1817,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     var opts = modalOpts;
     if (!opts) return;
 
-    /* Password mode — validate before calling onOk */
+    /* Password mode — validate then advance */
     if (opts.password) {
       var entered = document.getElementById('modal-pwd').value;
       if (entered !== opts.correctPwd) {
@@ -1816,16 +1826,17 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
         return;
       }
       var cb = opts.onOk;
+      /* fully close first, then open next modal on next event loop tick */
       closeModal();
-      if (cb) setTimeout(cb, 0);
+      if (cb) window.setTimeout(cb, 50);
       return;
     }
 
-    /* Input / plain confirm mode */
+    /* Plain confirm mode */
     var inputVal = document.getElementById('modal-input').value.trim();
     var cb2 = opts.onOk;
     closeModal();
-    if (cb2) setTimeout(function() { cb2(inputVal); }, 0);
+    if (cb2) window.setTimeout(function() { cb2(inputVal); }, 50);
   });
 
   document.getElementById('modal-cancel-btn').addEventListener('click', function(e) {
@@ -2227,8 +2238,10 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   }
 
   /* ── Delete All ── */
+  var pendingDeleteAll = false;
   document.getElementById('delete-all-btn').addEventListener('click', function() {
     if (members.length === 0) { showToast('No members to delete.', '#525252'); return; }
+    pendingDeleteAll = false;
     /* Step 1 — password */
     showModal({
       icon: '🔒',
@@ -2237,16 +2250,20 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       password: true,
       okLabel: 'Verify',
       okColor: 'red',
-      correctPwd: 'Password123!',
+      correctPwd: ADMIN_PWD,
       onOk: function() {
-        /* Step 2 — confirm */
+        pendingDeleteAll = true;
+        var count = members.length;
+        /* Step 2 — confirm (opens after 50ms gap) */
         showModal({
           icon: '⚠️',
           title: 'Delete All Updates?',
-          desc: 'This will permanently delete all ' + members.length + ' team member update(s). This cannot be undone.',
+          desc: 'This will permanently delete all ' + count + ' team member update(s). This cannot be undone.',
           okLabel: 'Yes, Delete All',
           okColor: 'red',
           onOk: function() {
+            if (!pendingDeleteAll) return;
+            pendingDeleteAll = false;
             membersRef.remove();
             historyRef.remove();
             history = {};
