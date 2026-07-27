@@ -400,6 +400,64 @@ input.invalid, textarea.invalid, select.invalid {
   align-items: center;
 }
 
+/* ── Edited badge ── */
+.edited-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #FFF8E1;
+  color: #7D5A00;
+  border: 1px solid #F1C21B;
+  border-radius: 99px;
+  padding: 2px 8px;
+}
+
+/* ── History panel ── */
+.history-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ibm-blue);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 8px 0 0;
+  font-family: inherit;
+  width: 100%;
+  text-align: left;
+}
+.history-toggle:hover { text-decoration: underline; }
+.history-panel { display: none; margin-top: 8px; }
+.history-panel.open { display: block; }
+.history-entry {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ibm-blue);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+}
+.history-entry:last-child { margin-bottom: 0; }
+.history-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.history-ts { font-size: 10px; font-weight: 700; color: var(--text-muted); }
+.history-action-add  { font-size: 10px; font-weight: 700; color: #0E6027; background: #DEFBE6; border: 1px solid #A7F0BA; border-radius: 99px; padding: 1px 8px; }
+.history-action-edit { font-size: 10px; font-weight: 700; color: #7D5A00; background: #FFF8E1; border: 1px solid #F1C21B; border-radius: 99px; padding: 1px 8px; }
+.history-fields { display: grid; grid-template-columns: 72px 1fr; gap: 3px 8px; }
+.history-lbl { font-weight: 600; color: var(--text-subtle); font-size: 10.5px; }
+.history-val { color: var(--text); font-size: 10.5px; }
+
 /* ─────────────── EMPTY STATE ─────────────── */
 .empty {
   text-align: center;
@@ -915,6 +973,7 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   /* ── State ── */
   var members   = [];
   var editingId = null;
+  var history   = {}; /* { memberId: [ snapshot... ] } */
 
   /* ── Date ── */
   var now = new Date();
@@ -1108,15 +1167,21 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
         '</div>' +
         '<div class="card-footer">' +
           '<span class="status-pill ' + statusPillClass(m.blocked) + '" data-tip="Current status">' + statusLabel(m.blocked) + '</span>' +
-          '<span data-tip="Last updated">⏱ ' + timeAgo(m.ts || Date.now()) + '</span>' +
-        '</div>';
+          '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+            (m.isEdited && m.editedBy ? '<span class="edited-badge" data-tip="Last edited by">✏ Edited by ' + escHtml(m.editedBy) + '</span>' : '') +
+            '<span data-tip="Last updated">⏱ ' + timeAgo(m.ts || Date.now()) + '</span>' +
+          '</div>' +
+        '</div>' +
+        buildHistoryPanel(m);
 
       container.appendChild(card);
     });
 
     container.onclick = function(e) {
-      var editId = e.target.getAttribute('data-edit') || (e.target.closest ? (e.target.closest('[data-edit]') || {getAttribute:function(){return null;}}).getAttribute('data-edit') : null);
-      if (editId) startEdit(editId);
+      var editId  = e.target.getAttribute('data-edit')     || (e.target.closest ? (e.target.closest('[data-edit]')     || {getAttribute:function(){return null;}}).getAttribute('data-edit')     : null);
+      var histBtn = e.target.getAttribute('data-hist-btn') || (e.target.closest ? (e.target.closest('[data-hist-btn]') || {getAttribute:function(){return null;}}).getAttribute('data-hist-btn') : null);
+      if (editId)  startEdit(editId);
+      if (histBtn) toggleHistory(histBtn);
     };
   }
 
@@ -1137,8 +1202,12 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     if (!blocked)   { showError('f-blocked',   'err-blocked');   valid = false; }
     if (!valid) { document.querySelector('.invalid').focus(); return; }
 
+    var entryId = editingId || uid();
+    var isEdit  = !!editingId;
+    var editorName = isEdit ? (members.filter(function(x){ return x.id === editingId; })[0] || {}).name || '' : '';
+
     var entry = {
-      id:        editingId || uid(),
+      id:        entryId,
       name:      name,
       ticket:    val('f-ticket'),
       role:      document.getElementById('f-role').value,
@@ -1147,15 +1216,30 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       blockers:  blockers,
       blocked:   blocked,
       support:   val('f-support'),
-      ts:        Date.now()
+      ts:        Date.now(),
+      isEdited:  isEdit,
+      editedBy:  isEdit ? editorName : null
     };
 
-    if (editingId) {
+    /* Snapshot into history */
+    if (!history[entryId]) history[entryId] = [];
+    history[entryId].unshift({
+      ts:        entry.ts,
+      action:    isEdit ? 'Edited' : 'Added',
+      editedBy:  editorName || name,
+      yesterday: entry.yesterday,
+      today:     entry.today,
+      blockers:  entry.blockers,
+      blocked:   entry.blocked,
+      support:   entry.support
+    });
+
+    if (isEdit) {
       for (var i = 0; i < members.length; i++) {
         if (members[i].id === editingId) { members[i] = entry; break; }
       }
       stopEdit();
-      showToast('✏ Update saved for ' + name);
+      showToast('✏ ' + name + '\'s update saved');
     } else {
       members.push(entry);
       showToast('✅ ' + name + ' added to stand-up!');
@@ -1166,11 +1250,22 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     hideSummary();
   });
 
-  /* ── Edit ── */
+  /* ── Edit — identity check ── */
   function startEdit(id) {
     var m = null;
     for (var i = 0; i < members.length; i++) { if (members[i].id === id) { m = members[i]; break; } }
     if (!m) return;
+
+    /* Ask who is trying to edit */
+    var who = (window.prompt('Please enter your name to edit your update:') || '').trim();
+    if (!who) return;
+
+    /* Case-insensitive name match */
+    if (who.toLowerCase() !== m.name.toLowerCase()) {
+      showToast('🚫 You can only edit your own update. This update belongs to ' + m.name + '.', '#DA1E28');
+      return;
+    }
+
     editingId = id;
     set('f-name',      m.name);
     set('f-ticket',    m.ticket);
@@ -1212,6 +1307,53 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     stopEdit();
     clearForm();
   });
+
+  /* ── History helpers ── */
+  function buildHistoryPanel(m) {
+    var log = history[m.id] || [];
+    if (log.length === 0) return '';
+    var count = log.length;
+    var panelId = 'hist-' + m.id;
+
+    var html = '<button class="history-toggle" data-hist-btn="' + m.id + '">🕒 View History (' + count + ')</button>'
+             + '<div class="history-panel" id="' + panelId + '">';
+
+    log.forEach(function(h) {
+      var d = new Date(h.ts);
+      var dateStr = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+      var timeStr = d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+      html += '<div class="history-entry">'
+            +   '<div class="history-meta">'
+            +     '<span class="history-ts">📅 ' + dateStr + ' &nbsp;⏱ ' + timeStr + '</span>'
+            +     '<span class="history-action-' + (h.action === 'Edited' ? 'edit' : 'add') + '">'
+            +       (h.action === 'Edited' ? '✏ Edited by ' + escHtml(h.editedBy) : '➕ Added by ' + escHtml(h.editedBy))
+            +     '</span>'
+            +   '</div>'
+            +   '<div class="history-fields">'
+            +     '<span class="history-lbl">Yesterday</span><span class="history-val">' + escHtml(h.yesterday || '—') + '</span>'
+            +     '<span class="history-lbl">Today</span><span class="history-val">'     + escHtml(h.today     || '—') + '</span>'
+            +     '<span class="history-lbl">Blockers</span><span class="history-val">'  + escHtml(h.blockers  || 'None') + '</span>'
+            +     (h.support ? '<span class="history-lbl">Support</span><span class="history-val">' + escHtml(h.support) + '</span>' : '')
+            +   '</div>'
+            + '</div>';
+    });
+
+    html += '</div>';
+    return html;
+  }
+
+  function toggleHistory(memberId) {
+    var panel = document.getElementById('hist-' + memberId);
+    if (!panel) return;
+    panel.classList.toggle('open');
+    /* Update toggle button label */
+    var btn = panel.previousElementSibling;
+    if (btn) {
+      var isOpen = panel.classList.contains('open');
+      var count  = (history[memberId] || []).length;
+      btn.textContent = isOpen ? '🕒 Hide History (' + count + ')' : '🕒 View History (' + count + ')';
+    }
+  }
 
   /* ── Remove ── */
   function removeMember(id) {
