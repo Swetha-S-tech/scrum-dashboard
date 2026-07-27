@@ -1363,6 +1363,152 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
     if (e.key === 'Enter') document.getElementById('login-btn').click();
   });
 
+  /* ── Settings ── */
+  var ADMIN_PWD = 'Scrum!!007';
+  var editingTeamKey = null;
+
+  document.getElementById('settings-open-btn').addEventListener('click', function() {
+    document.getElementById('settings-auth').style.display     = 'block';
+    document.getElementById('settings-content').classList.remove('open');
+    document.getElementById('settings-pwd-input').value        = '';
+    document.getElementById('settings-auth-err').style.display = 'none';
+    document.getElementById('settings-overlay').classList.add('open');
+    setTimeout(function() { document.getElementById('settings-pwd-input').focus(); }, 80);
+  });
+
+  document.getElementById('settings-close-btn').addEventListener('click', closeSettings);
+  document.getElementById('settings-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeSettings();
+  });
+
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('open');
+    document.getElementById('settings-edit-form').classList.remove('open');
+    editingTeamKey = null;
+  }
+
+  document.getElementById('settings-auth-btn').addEventListener('click', function() {
+    var pwd = document.getElementById('settings-pwd-input').value;
+    if (pwd !== ADMIN_PWD) {
+      document.getElementById('settings-auth-err').style.display = 'block';
+      document.getElementById('settings-pwd-input').value = '';
+      document.getElementById('settings-pwd-input').focus();
+      return;
+    }
+    document.getElementById('settings-auth').style.display = 'none';
+    document.getElementById('settings-content').classList.add('open');
+    renderSettingsTeams();
+  });
+
+  document.getElementById('settings-pwd-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('settings-auth-btn').click();
+  });
+
+  function renderSettingsTeams() {
+    var list = document.getElementById('settings-teams-list');
+    list.innerHTML = '';
+    document.getElementById('settings-edit-form').classList.remove('open');
+    document.getElementById('settings-global-msg').style.display = 'none';
+    editingTeamKey = null;
+    var allTeams = Object.keys(TEAMS).map(function(k) { return { key: k, label: TEAMS[k].label }; });
+    if (allTeams.length === 0) { list.innerHTML = '<p style="font-size:13px;color:#8D8D8D;">No teams found.</p>'; return; }
+    allTeams.forEach(function(t) {
+      var row = document.createElement('div');
+      row.className = 'team-row';
+      row.innerHTML = '<div class="team-row-info">'
+        + '<div class="team-row-name">' + escHtml(t.label) + '</div>'
+        + '<div class="team-row-key">ID: ' + escHtml(t.key) + '</div>'
+        + '</div>'
+        + '<div class="team-row-actions">'
+        + '<button class="btn-team-edit" data-skey="' + t.key + '">✏ Edit</button>'
+        + '<button class="btn-team-del"  data-dkey="' + t.key + '">🗑 Delete</button>'
+        + '</div>';
+      list.appendChild(row);
+    });
+    list.onclick = function(e) {
+      var editKey = e.target.getAttribute('data-skey');
+      var delKey  = e.target.getAttribute('data-dkey');
+      if (editKey) openEditForm(editKey);
+      if (delKey)  deleteTeam(delKey);
+    };
+  }
+
+  function openEditForm(key) {
+    editingTeamKey = key;
+    document.getElementById('edit-form-team-label').textContent = TEAMS[key].label;
+    document.getElementById('edit-team-name').value = TEAMS[key].label;
+    document.getElementById('edit-team-pwd').value  = '';
+    document.getElementById('edit-team-pwd2').value = '';
+    document.getElementById('edit-msg').style.display = 'none';
+    document.getElementById('settings-edit-form').classList.add('open');
+    document.getElementById('edit-team-name').focus();
+  }
+
+  document.getElementById('edit-cancel-btn').addEventListener('click', function() {
+    document.getElementById('settings-edit-form').classList.remove('open');
+    editingTeamKey = null;
+  });
+
+  document.getElementById('edit-save-btn').addEventListener('click', function() {
+    if (!editingTeamKey) return;
+    var newName = document.getElementById('edit-team-name').value.trim();
+    var newPwd1 = document.getElementById('edit-team-pwd').value;
+    var newPwd2 = document.getElementById('edit-team-pwd2').value;
+    var msgEl   = document.getElementById('edit-msg');
+    msgEl.style.display = 'none'; msgEl.className = 'settings-msg';
+    if (!newName)                   { msgEl.textContent = '❌ Name cannot be empty.';            msgEl.className = 'settings-msg err'; msgEl.style.display = 'block'; return; }
+    if (newPwd1 && newPwd1 !== newPwd2) { msgEl.textContent = '❌ Passwords do not match.';     msgEl.className = 'settings-msg err'; msgEl.style.display = 'block'; return; }
+    if (newPwd1 && newPwd1.length < 6)  { msgEl.textContent = '❌ Min 6 characters.';           msgEl.className = 'settings-msg err'; msgEl.style.display = 'block'; return; }
+    var updates = { label: newName };
+    if (newPwd1) updates.password = newPwd1;
+    TEAMS[editingTeamKey].label = newName;
+    if (newPwd1) TEAMS[editingTeamKey].password = newPwd1;
+    var isDefault = (editingTeamKey === 'notification-wizards' || editingTeamKey === 'notification-team2');
+    if (!isDefault) {
+      registryRef.child(editingTeamKey).update(updates, function(err) {
+        if (err) { msgEl.textContent = '❌ Failed to save.'; msgEl.className = 'settings-msg err'; msgEl.style.display = 'block'; return; }
+        showSettingsMsg('✅ Team updated.', 'ok');
+        document.getElementById('settings-edit-form').classList.remove('open');
+        editingTeamKey = null;
+        renderSettingsTeams();
+      });
+    } else {
+      showSettingsMsg('✅ Team updated.', 'ok');
+      document.getElementById('settings-edit-form').classList.remove('open');
+      editingTeamKey = null;
+      renderSettingsTeams();
+    }
+  });
+
+  function deleteTeam(key) {
+    var team = TEAMS[key];
+    showModal({
+      icon: '🗑',
+      title: 'Delete "' + team.label + '"?',
+      desc: 'This permanently deletes the team board and ALL their scrum data. Cannot be undone.',
+      okLabel: 'Yes, Delete',
+      okColor: 'red',
+      onOk: function() {
+        db.ref('teams/' + key).remove();
+        var isDefault = (key === 'notification-wizards' || key === 'notification-team2');
+        if (!isDefault) registryRef.child(key).remove();
+        delete TEAMS[key];
+        var datalist = document.getElementById('team-suggestions');
+        for (var i = datalist.options.length - 1; i >= 0; i--) {
+          if (datalist.options[i].value === team.label) { datalist.remove(i); break; }
+        }
+        showSettingsMsg('✅ "' + team.label + '" deleted.', 'ok');
+        renderSettingsTeams();
+      }
+    });
+  }
+
+  function showSettingsMsg(msg, type) {
+    var el = document.getElementById('settings-global-msg');
+    el.textContent = msg; el.className = 'settings-msg ' + type; el.style.display = 'block';
+    setTimeout(function() { el.style.display = 'none'; }, 3000);
+  }
+
   /* ── Toggle create panel ── */
   document.getElementById('toggle-create-btn').addEventListener('click', function() {
     var panel = document.getElementById('create-panel');
