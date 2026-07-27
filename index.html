@@ -937,6 +937,106 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
   color: #24A148; display: none;
 }
 
+/* ── Settings button & warning ── */
+.settings-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid #DDE1E6;
+}
+.settings-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #fff; color: #525252;
+  border: 1.5px solid #DDE1E6; border-radius: 99px;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  padding: 6px 14px; cursor: pointer; transition: all .2s ease;
+}
+.settings-btn:hover { background: #F4F6FB; border-color: #B0B8C8; }
+.restricted-tag {
+  font-size: 10px; font-weight: 700; color: #DA1E28;
+  background: #FFF1F1; border: 1px solid #FFB3B8;
+  border-radius: 99px; padding: 2px 8px;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+
+/* ── Settings overlay ── */
+#settings-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.5); z-index: 9997;
+  align-items: center; justify-content: center;
+}
+#settings-overlay.open { display: flex; }
+.settings-panel {
+  background: #fff; border-radius: 16px;
+  padding: 28px 28px 24px; max-width: 560px; width: 94%;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0,0,0,.22);
+  font-family: 'IBM Plex Sans','Segoe UI',sans-serif;
+}
+.settings-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 20px; padding-bottom: 14px;
+  border-bottom: 2px solid #EDF5FF;
+}
+.settings-title { font-size: 16px; font-weight: 700; color: #161616; }
+.settings-close {
+  background: none; border: none; font-size: 20px;
+  cursor: pointer; color: #525252; line-height: 1;
+  padding: 2px 6px; border-radius: 6px;
+}
+.settings-close:hover { background: #F4F6FB; }
+
+/* Settings auth */
+#settings-auth { }
+#settings-content { display: none; }
+#settings-content.open { display: block; }
+
+/* Team list in settings */
+.teams-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.team-row {
+  background: #F4F6FB; border: 1px solid #DDE1E6;
+  border-radius: 10px; padding: 12px 14px;
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+}
+.team-row-info { flex: 1; min-width: 0; }
+.team-row-name { font-size: 13px; font-weight: 700; color: #161616; }
+.team-row-key  { font-size: 10px; color: #8D8D8D; margin-top: 1px; }
+.team-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-team-edit {
+  background: #EDF5FF; color: #0F62FE; border: none;
+  border-radius: 99px; font-size: 11px; font-weight: 600;
+  font-family: inherit; padding: 5px 12px; cursor: pointer;
+  transition: background .2s;
+}
+.btn-team-edit:hover { background: #D0E2FF; }
+.btn-team-del {
+  background: #FFF1F1; color: #DA1E28; border: none;
+  border-radius: 99px; font-size: 11px; font-weight: 600;
+  font-family: inherit; padding: 5px 12px; cursor: pointer;
+  transition: background .2s;
+}
+.btn-team-del:hover { background: #FFD7D9; }
+
+/* Edit form inside settings */
+.settings-edit-form {
+  display: none; background: #F4F6FB; border: 1px solid #DDE1E6;
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+}
+.settings-edit-form.open { display: block; }
+.settings-edit-form label { font-size: 11px; font-weight: 600; color: #525252; display: block; margin-bottom: 4px; margin-top: 10px; }
+.settings-edit-form label:first-child { margin-top: 0; }
+.settings-edit-form input {
+  width: 100%; padding: 8px 10px; border: 1.5px solid #DDE1E6;
+  border-radius: 8px; font-size: 13px; font-family: inherit;
+  background: #fff; outline: none;
+}
+.settings-edit-form input:focus { border-color: #0F62FE; }
+.settings-msg { font-size: 11px; font-weight: 600; margin-top: 8px; display: none; }
+.settings-msg.ok  { color: #24A148; }
+.settings-msg.err { color: #DA1E28; }
+.settings-section-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: #525252; margin-bottom: 10px;
+}
+
 /* ─────────────── TEAM BADGE in header ─────────────── */
 .team-badge {
   display: inline-flex; align-items: center; gap: 6px;
@@ -990,8 +1090,57 @@ footer span { color: var(--ibm-blue); font-weight: 600; }
       <div class="create-success" id="create-success">✅ Team board created! It now appears in the dropdown.</div>
       <button class="login-btn" id="create-btn" style="margin-top:16px;">Create Board</button>
     </div>
+
+    <!-- Settings bar -->
+    <div class="settings-bar">
+      <button class="settings-btn" id="settings-open-btn">⚙️ Settings</button>
+      <span class="restricted-tag">🔒 Restricted</span>
+    </div>
   </div>
 </div>
+
+<!-- ── SETTINGS OVERLAY ── -->
+<div id="settings-overlay">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <div class="settings-title">⚙️ Admin Settings</div>
+      <button class="settings-close" id="settings-close-btn">✕</button>
+    </div>
+
+    <!-- Step 1: Auth -->
+    <div id="settings-auth">
+      <p style="font-size:13px;color:#525252;margin-bottom:14px;">Enter the admin password to access settings.</p>
+      <input class="login-input" type="password" id="settings-pwd-input" placeholder="Admin password" style="margin-bottom:10px;" />
+      <div class="settings-msg err" id="settings-auth-err">❌ Incorrect password.</div>
+      <button class="login-btn" id="settings-auth-btn" style="margin-top:12px;width:100%;">Unlock Settings</button>
+    </div>
+
+    <!-- Step 2: Content (shown after auth) -->
+    <div id="settings-content">
+      <div class="settings-section-title">📋 All Team Boards</div>
+      <div class="teams-list" id="settings-teams-list"></div>
+
+      <!-- Inline edit form -->
+      <div class="settings-edit-form" id="settings-edit-form">
+        <div style="font-size:12px;font-weight:700;color:#0F62FE;margin-bottom:10px;">✏️ Edit Team: <span id="edit-form-team-label"></span></div>
+        <label>New Team Name</label>
+        <input type="text" id="edit-team-name" placeholder="Team name" />
+        <label>New Password</label>
+        <input type="password" id="edit-team-pwd" placeholder="Leave blank to keep current" />
+        <label>Confirm New Password</label>
+        <input type="password" id="edit-team-pwd2" placeholder="Re-enter new password" />
+        <div class="settings-msg" id="edit-msg"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="login-btn" id="edit-save-btn" style="margin-top:0;flex:1;padding:9px;">Save Changes</button>
+          <button class="settings-btn" id="edit-cancel-btn" style="flex:0 0 auto;">Cancel</button>
+        </div>
+      </div>
+
+      <div class="settings-msg ok" id="settings-global-msg"></div>
+    </div>
+  </div>
+</div>
+
 <div id="app-screen" style="display:none;">
 <div class="container">
 
